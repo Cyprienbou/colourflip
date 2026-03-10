@@ -2,12 +2,12 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ColourFlip — Multiplayer</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>ColourFlip</title>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;0,900;1,400;1,700&family=DM+Mono:ital,wght@0,300;0,400;1,300&display=swap" rel="stylesheet">
 
 <script type="module">
-import { initializeApp }                            from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+import { initializeApp }                               from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
 import { getDatabase, ref, set, get, onValue, update } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
 const firebaseConfig = {
@@ -19,142 +19,373 @@ const firebaseConfig = {
   messagingSenderId: "847065587601",
   appId:             "1:847065587601:web:ca0feb0b7ab881da834430"
 };
-
 const app = initializeApp(firebaseConfig);
 const db  = getDatabase(app);
 
-// ─── 20 BLUE SHADES ────────────────────────────────────
-const SHADES = [
-  {
-    name: "Prussian Blue", hex: "#003153",
-    origin:  "Discovered accidentally in Berlin, 1704 — chemist Diesbach mixed contaminated iron salts with potash, producing the world's first synthetic pigment.",
-    nature:  "Absent — fully synthetic, no natural mineral equivalent exists anywhere on Earth.",
-    culture: "Hokusai's The Great Wave, Prussian military uniforms, early architectural blueprints."
+// ══════════════════════════════════════════════════════
+// COLOUR FAMILIES
+// ══════════════════════════════════════════════════════
+const FAMILIES = {
+  blues: {
+    label: "Blues", emoji: "💙", accent: "#1B6FA8",
+    shades: [
+      { name:"Prussian Blue", hex:"#003153", origin:"Discovered accidentally in Berlin, 1704 — chemist Diesbach mixed contaminated iron salts with potash, creating the world's first synthetic pigment.", nature:"Absent — fully synthetic, no natural mineral equivalent exists.", culture:"Hokusai's The Great Wave, Prussian military uniforms, architectural blueprints." },
+      { name:"Azurite",       hex:"#1B6FA8", origin:"From Arabic lazaward via Latin azurrum — a vivid blue copper carbonate mineral known since Antiquity.", nature:"Rare — found in oxidised copper ore deposits. Darkens to green over centuries.", culture:"Renaissance frescoes, Egyptian jewellery, medieval manuscript illumination." },
+      { name:"Cerulean",      hex:"#2A8FBF", origin:"From Latin caelum meaning sky. Named the official cloudless-sky colour by 18th-century academic painters.", nature:"Common — daytime sky, ocean shallows, blue jay feathers, morning glories.", culture:"Symbol of calm. Pantone Colour of the Year 2000. Widely used in corporate identity." },
+      { name:"Periwinkle",    hex:"#8FAADC", origin:"From Vinca minor, a low-growing plant of European forest floors whose pale blue petals gave the colour its name.", nature:"Common — woodland floors across Europe in spring; also in butterfly wings.", culture:"Victorian symbol of friendship. Dominant in Y2K digital aesthetics." },
+      { name:"Woad",          hex:"#576D8E", origin:"Old English wad — from Isatis tinctoria, cultivated across Europe for millennia to extract blue dye from its leaves.", nature:"Cultivated — small yellow flowers, blue dye from fermented leaves.", culture:"Gauls and Picts painted their skin with it. Banned in Germany when indigo arrived in 1654." },
+      { name:"Smalt",         hex:"#003A6C", origin:"From Italian smalto (enamel). A deep blue pigment made by fusing cobalt ore with ground glass.", nature:"Absent — entirely manufactured from mined cobalt.", culture:"Used by Vermeer, Rubens and Rembrandt. Dominant blue in European oil painting 1500–1700." },
+      { name:"Lapis",         hex:"#26619C", origin:"From Latin lapis (stone) and Arabic lazaward. Mined in the Sar-e-Sang valley of Afghanistan for over 6,000 years.", nature:"Very rare — only a few mines worldwide. Blue caused by the mineral lazurite.", culture:"More expensive than gold in the Middle Ages. Reserved for the Virgin Mary's mantle." },
+      { name:"Majorelle",     hex:"#5B3F93", origin:"Named after French painter Jacques Majorelle, who painted his Marrakech villa in this intense cobalt-violet hue in 1937.", nature:"Absent — invented as an architectural colour. Some morpho butterfly wings come close.", culture:"Yves Saint Laurent bought the garden in 1980, cementing it in fashion history." },
+      { name:"Cerulean",      hex:"#4682B4", origin:"From Old English, meaning steel-grey blue. Popularised in industrial design manuals of the early 20th century.", nature:"Present — glacial meltwater, kingfisher backs, cold deep-sea water.", culture:"Popularised in 1930s automotive and aviation design. A staple of tech identity today." },
+      { name:"Watchet",       hex:"#7BA7BC", origin:"An Old English word of uncertain origin. One of the oldest recorded colour names in English, mentioned by Chaucer.", nature:"Present — pale winter skies, shallow coastal water over white sand, faded linen.", culture:"Used in medieval English heraldry. Appears in Shakespeare's Henry IV." },
+      { name:"Zaffre",        hex:"#0014A8", origin:"From Arabic safra meaning yellow — an ironic name. Crude cobalt oxide used since the 16th century to tint glass blue.", nature:"Absent — processed from cobalt ore. Raw mineral smaltite is silver-grey.", culture:"Used in Delftware, Chinese blue-and-white porcelain, stained glass windows." },
+      { name:"Bice",          hex:"#4F84C4", origin:"Medieval pigment from ground azurite. Less saturated than ultramarine, the affordable alternative for artists.", nature:"Rare — same copper ore origin as azurite. Coarser grind means paler hue.", culture:"Used in Gothic manuscript illumination. Replaced by Prussian blue after 1704." },
+      { name:"Nattier",       hex:"#6A8EAE", origin:"Named after Jean-Marc Nattier (1685–1766), portraitist of Louis XV's court who dressed his subjects in this soft grey-blue.", nature:"Rare — approaches the colour of a cloudy winter sky or grey heron plumage.", culture:"Emblem of 18th-century French aristocratic femininity. Paired with silver in Rococo interiors." },
+      { name:"Sèvres",        hex:"#6082B6", origin:"Developed at the Royal Manufactory of Sèvres under Louis XV around 1749. Formula protected by royal patent from 1756.", nature:"Absent — a manufactured enamel glaze colour.", culture:"Synonymous with French luxury porcelain. Gifted to foreign heads of state across Europe." },
+      { name:"Camaïeu",       hex:"#5B8DB8", origin:"From the French painting technique using gradations of a single hue only. Word possibly from dialectal chamahieu.", nature:"Present — fair-weather sky in late afternoon, calm open ocean at distance.", culture:"Refined technique in 18th-century French decorative arts. Revived in Art Deco design." },
+      { name:"Pavonine",      hex:"#4E82B4", origin:"From Latin pavo meaning peacock. The iridescent blue-green sheen of male peacock neck feathers.", nature:"Present — peacock feathers, kingfisher plumage, tropical fish scales.", culture:"Symbol of immortality in Christianity. Pride in western allegory. Royalty in India." },
+      { name:"Turchino",      hex:"#2E86AB", origin:"Old Italian for turquoise-blue. From the Persian turquoise stone, which reached Europe via Ottoman Turkey.", nature:"Present — turquoise mineral deposits in Iran, Tibet, and the American Southwest.", culture:"Sacred to Aztecs and Navajo. A protective stone in Persian and Turkish culture." },
+      { name:"Pewter Blue",   hex:"#627D98", origin:"Named after oxidised pewter, the tin-lead alloy used for tableware since Roman times.", nature:"Present — overcast winter skies, slate rooftops, grey whale skin, aged driftwood.", culture:"Prized in Scandinavian design. Associated with restraint in French bourgeois interiors." },
+      { name:"Wisteria",      hex:"#7B68B5", origin:"Named after the Wisteria genus of vines, honouring anatomist Caspar Wistar (1761–1818).", nature:"Present — wisteria flowers in East Asia and North America. Also in lavender and iris.", culture:"Symbol of longevity and poetry in Chinese and Japanese culture." },
+      { name:"Indigo",        hex:"#4B0082", origin:"From Greek indikon meaning from India. Traded along the Silk Road; sometimes used as currency.", nature:"Cultivated — extracted from Indigofera tinctoria leaves. Also in some sea snails.", culture:"One of Newton's seven rainbow colours. Denim jeans worldwide. Sacred in Hinduism." },
+    ]
   },
-  {
-    name: "Azurite", hex: "#1B6FA8",
-    origin:  "From Arabic lazaward via Latin azurrum — a vivid blue copper carbonate mineral known since Antiquity and prized by Renaissance painters.",
-    nature:  "Rare — found in oxidised copper ore deposits worldwide. Unstable in humidity, it slowly darkens to green over centuries.",
-    culture: "Renaissance frescoes, Egyptian jewellery, medieval manuscript illumination, the robes of the Virgin Mary."
+  reds: {
+    label: "Reds", emoji: "❤️", accent: "#B5281E",
+    shades: [
+      { name:"Vermillion",   hex:"#E34234", origin:"From Latin vermiculus, a small worm — the kermes insect from which scarlet dye was extracted before synthetic pigments.", nature:"Rare mineral — cinnabar (mercury sulphide) in volcanic rock. Toxic if ingested.", culture:"Imperial robes in China. Renaissance painting. The red of traditional Chinese lacquerware." },
+      { name:"Carmine",      hex:"#960018", origin:"From Arabic qirmiz and Sanskrit krimidja, meaning worm-made. Extracted from the cochineal insect of South America.", nature:"Biological — cochineal insects on prickly pear cactus in Mexico and Peru.", culture:"Aztec tribute dye. Lipstick and food colouring (E120). Redcoat military uniforms." },
+      { name:"Madder",       hex:"#AC3235", origin:"Old English maedere — from Rubia tinctorum, a plant cultivated for 4,000 years for its root-derived red dye.", nature:"Cultivated — fleshy red roots of the madder plant, grown across Europe and Asia.", culture:"Egyptian mummy wrappings, Pompeiian frescoes. Replaced by synthetic alizarin in 1868." },
+      { name:"Crimson",      hex:"#DC143C", origin:"From Arabic qirmiz via Medieval Latin cremesinus. Originally from the kermes insect, later from cochineal.", nature:"Biological — kermes oak insects (Kermes vermilio) in Mediterranean scrubland.", culture:"Royalty and church vestments. Harvard and other university colours. Passion and sacrifice." },
+      { name:"Venetian Red", hex:"#C80815", origin:"Named after Venice, where this earthy iron-oxide pigment was refined and traded to artists across Renaissance Europe.", nature:"Present — iron oxide deposits in ochre-rich soil worldwide. A form of haematite.", culture:"Terracotta rooftops, fresco underpainting. Widely used in Italian Renaissance art." },
+      { name:"Turkey Red",   hex:"#A91101", origin:"Named after its origin in Ottoman Turkey, where a complex alizarin dyeing process using oil and tannin was developed.", nature:"Cultivated — from madder roots, processed with a unique Turkish mordant technique.", culture:"18th-century cotton textiles. Scottish tartans. Imported to Europe via trade routes." },
+      { name:"Falu Red",     hex:"#801818", origin:"From Falun, a copper mine in Sweden. The red pigment is a by-product of copper extraction, rich in iron oxide.", nature:"Present — iron-rich mine waste from Swedish copper smelting. Stable and weather-resistant.", culture:"Iconic on Swedish farmhouses since the 18th century. Symbol of rural Scandinavian identity." },
+      { name:"Scarlet",      hex:"#FF2400", origin:"From Persian saqerlat via Old French escarlate — originally a luxury wool fabric, the colour named after the cloth.", nature:"Rare in pure form — some poison dart frogs, male cardinals, scarlet macaw feathers.", culture:"Symbol of sin and lust in literature. Military uniforms. The red of fire engines globally." },
+      { name:"Nacarat",      hex:"#FC4C4E", origin:"From Spanish nacarado and French nacarat — a vivid orange-red recalling the interior of a mother-of-pearl shell.", nature:"Present — flamingo feathers, red coral, some tropical fish. Related to carotenoid pigments.", culture:"17th-century French luxury textiles. Worn at Versailles. Associated with delicate femininity." },
+      { name:"Garance",      hex:"#BD3039", origin:"French name for madder red (Rubia tinctorum). From Old French garance, itself from a Germanic root meaning madder plant.", nature:"Cultivated — madder root. Garance was the specific shade from the French cultivation.", culture:"French military trousers 1829–1914. So iconic that German snipers could target French soldiers." },
+      { name:"Ponceau",      hex:"#C7463A", origin:"From French coquelicot (poppy). Ponceau is the vivid red of wild poppies (Papaver rhoeas) blooming in cornfields.", nature:"Common — wild poppies in European and Asian fields. Colour from anthocyanin pigments.", culture:"Symbol of remembrance for WWI soldiers. Food dye E124. Belle Époque fashion red." },
+      { name:"Dragon's Blood",hex:"#7C1C05", origin:"Resin of the Dracaena tree. Named for its blood-red colour and the legend that it flowed from injured dragons.", nature:"Present — red resin from Dracaena and Daemonorops palms in the Canary Islands and Asia.", culture:"Medieval alchemy and magic. Varnish for Stradivarius violins. Traditional medicine in China." },
+      { name:"Titian",       hex:"#B5281E", origin:"Named after the Venetian painter Titian (1488–1576), renowned for his rich red hair, auburn-to-red tones in portraits.", nature:"Present — autumn leaves, some fox fur, red clay soil of Tuscany.", culture:"The ultimate Renaissance red. Titian's female nudes defined European beauty standards." },
+      { name:"Solferino",    hex:"#A3497A", origin:"Named after the Battle of Solferino (1859) in Italy. The blood-soaked battlefield inspired this deep red-violet colour name.", nature:"Absent — a synthetic aniline dye discovered around the time of the battle.", culture:"First synthetic magenta dye. Inspired the founding of the Red Cross after Henri Dunant witnessed the battle." },
+      { name:"Amaranth",     hex:"#9F2B68", origin:"From Greek amarantos meaning unfading. Named after the amaranth plant whose deep red flowers were symbols of immortality.", nature:"Present — amaranth flowers worldwide. Also in red beets and some berries.", culture:"Sacred to the Aztecs as a food crop. Symbol of immortality in Greek mythology and poetry." },
+      { name:"Alizarin",     hex:"#E32636", origin:"From Arabic al-usara meaning juice. The first natural dye to be synthesised artificially, in 1868 by Graebe and Liebermann.", nature:"Present — derived from madder root (Rubia tinctorum) before synthesis.", culture:"Replaced natural madder in the textile industry. Still used in artist oil paints today." },
+      { name:"Oxblood",      hex:"#4A0000", origin:"Named literally after the dark red colour of ox blood. Used in ceramics since the Song Dynasty in China (960–1279).", nature:"Biological — the dark venous blood of cattle. Colour from deoxygenated haemoglobin.", culture:"Chinese sang-de-boeuf porcelain. Classic leather goods. Victorian interior design." },
+      { name:"Venetian Lake", hex:"#8B1A1A", origin:"A transparent red lake pigment made in Venice from kermes or cochineal, used as a glazing colour in oil painting.", nature:"Biological — kermes insects on oak trees. A semi-transparent colour with great depth.", culture:"Rembrandt, Rubens and Titian all used it for red glazes and shadow in flesh tones." },
+      { name:"Minium",       hex:"#CC3300", origin:"From Latin minium — red lead (lead tetroxide). One of the oldest pigments, used since ancient Egypt and Rome.", nature:"Rare mineral — forms naturally in lead ore deposits. Also known as red lead.", culture:"Illuminated manuscripts (hence 'miniature'). Roman frescoes. Poisonous; abandoned in art." },
+      { name:"Cinnabar",     hex:"#E44D2E", origin:"From Greek kinnabari. Mercury sulphide mineral, the most vivid natural red available to ancient painters.", nature:"Present — volcanic hydrothermal deposits near hot springs worldwide. Extremely toxic.", culture:"Chinese lacquerware, Aztec ritual face paint, Roman frescoes. Now replaced by cadmium red." },
+    ]
   },
-  {
-    name: "Cerulean", hex: "#2A8FBF",
-    origin:  "From Latin caelum meaning sky. Officially named the 'cloudless sky colour' by 18th-century academic painters seeking a standardised sky tone.",
-    nature:  "Common — the daytime sky, deep ocean shallows, the back of a blue jay, morning glories.",
-    culture: "Symbol of calm and clarity. The Pantone Colour of the Year in 2000. Widely used in corporate identity."
+  pinks: {
+    label: "Pinks", emoji: "🩷", accent: "#D4517A",
+    shades: [
+      { name:"Rose Quartz",  hex:"#F7CAC9", origin:"Named after the pale pink semi-precious stone, a variety of quartz tinted by trace amounts of titanium or manganese.", nature:"Present — rose quartz crystals in granite, pink sunrises, flamingo feathers at birth.", culture:"Pantone Colour of the Year 2016. Symbol of gentle love and emotional healing." },
+      { name:"Puce",         hex:"#CC8899", origin:"From French puce meaning flea. The dark pinkish-brown colour of a flea's body. Popularised at Versailles by Marie Antoinette.", nature:"Biological — the colour of a flea (Pulex irritans) seen against pale skin.", culture:"Scandalous colour name at Versailles. Louis XVI reportedly mocked it. 18th-century fashion." },
+      { name:"Amaranth Pink",hex:"#F19CBB", origin:"Lighter variant of amaranth, named after the pink flowers of some amaranth species found in tropical regions.", nature:"Present — amaranth flowers, some peonies, bougainvillea bracts, pink lotus.", culture:"Used in South Asian textile traditions. Associated with spring festivals and new beginnings." },
+      { name:"Camellia",     hex:"#FFBFBF", origin:"Named after the camellia flower (Camellia japonica), named by Carl Linnaeus after botanist Georg Kamel.", nature:"Present — camellia flowers across East Asia. Also in pale pink cherry blossoms in early spring.", culture:"Symbol of love in Victorian flower language. Coco Chanel's signature flower. Japanese elegance." },
+      { name:"Carnation",    hex:"#F95A61", origin:"From Latin carnatio meaning flesh-colour. Named after the carnation flower (Dianthus), from the Greek dios anthos (divine flower).", nature:"Present — carnation flowers worldwide. Pink pigment from anthocyanins in the petals.", culture:"Symbol of love in Flemish and Spanish painting. Mother's Day flower. Greek divine associations." },
+      { name:"Mountbatten",  hex:"#997A8D", origin:"Named after Lord Louis Mountbatten, who proposed this blue-pink camouflage for Royal Navy ships in WWII.", nature:"Absent — a military specification colour. Inspired by a ship's appearance in dawn light.", culture:"WWII naval camouflage. HMS Mountbatten was painted pink. Briefly adopted by some navies." },
+      { name:"Baker-Miller", hex:"#FF91AF", origin:"Named after US Navy officers Gene Baker and Ron Miller who tested this colour's supposed calming effect on prisoners.", nature:"Absent — synthetic paint colour. Also called 'drunk tank pink' for its prison use.", culture:"Painted in holding cells in the 1970s. Studies showed mixed results on aggression reduction." },
+      { name:"Cerise",       hex:"#DE3163", origin:"French for cherry. Named after the vivid deep pink of ripe Montmorency cherries, a variety cultivated near Paris.", nature:"Present — ripe cherries, some roses (Rosa 'Cerise Bouquet'), red currants.", culture:"19th-century French fashion colour. Used to describe vibrant pinks in haute couture." },
+      { name:"Hot Pink",     hex:"#FF69B4", origin:"Coined by Elsa Schiaparelli in 1931 who called her signature colour shocking pink. Later standardised as 'hot pink'.", nature:"Rare — some tropical flowers such as bougainvillea and some orchid species.", culture:"Schiaparelli's shocking pink, Barbie's signature colour, feminist and LGBTQ+ symbolism." },
+      { name:"Tickle Me Pink",hex:"#FC89AC", origin:"A Crayola crayon colour name from 1993. Named in a cheerful tradition of whimsical crayon names for children.", nature:"Present — some pink tulips, cherry blossoms, peonies in full bloom.", culture:"1990s childhood nostalgia. The playful tradition of Crayola naming. Pastel fashion trends." },
+      { name:"Orchid",       hex:"#DA70D6", origin:"Named after the complex purple-pink flowers of the Orchidaceae family, the largest family of flowering plants.", nature:"Present — orchid flowers worldwide, especially tropical epiphytic species.", culture:"Symbol of luxury, fertility and beauty. Victorian orchid mania. Used in perfumery." },
+      { name:"Thulian Pink", hex:"#DE6FA1", origin:"Named after Thule, the mythical northernmost land in ancient Greek geography. Evokes the pink of Arctic sunsets.", nature:"Present — Arctic midnight sun reflections on snow, some pink-tipped coral.", culture:"Used in typography and graphic design. Associated with dreamlike, faraway places." },
+      { name:"Charm",        hex:"#D4517A", origin:"A mid-century American paint chip colour name evoking warmth and femininity. Popularised in 1950s interior design.", nature:"Present — peony blooms, some rose varieties, ripe watermelon flesh.", culture:"1950s American domestic interior design. Suburban optimism and post-war colour enthusiasm." },
+      { name:"Dogwood",      hex:"#F9DACB", origin:"Named after the dogwood tree (Cornus florida), whose pale pink spring blossoms are emblematic of the American South.", nature:"Present — dogwood flowers across North America and East Asia every spring.", culture:"State flower of Virginia and North Carolina. Symbol of American spring and renewal." },
+      { name:"Salmon",       hex:"#FA8072", origin:"Named after the pink flesh colour of Atlantic salmon (Salmo salar). Used as a colour name since the 18th century.", nature:"Present — salmon flesh, pink flamingos (from carotenoids in shrimp), some roses.", culture:"Classic interior design colour. Associated with 1980s Miami aesthetic and Art Deco revival." },
+      { name:"Blush",        hex:"#DE5D83", origin:"Named after the natural flushing of pale human skin when blood rushes to the surface. Known since the 17th century.", nature:"Biological — skin flushing with emotion. Also in pink rose varieties and apple blossoms.", culture:"Bridal fashion. Ballet. Represents vulnerability and delicate beauty in western culture." },
+      { name:"Flamingo",     hex:"#FC8EAC", origin:"Named after the flamingo (Phoenicopterus roseus) whose pink colour comes entirely from carotenoid pigments in its shrimp diet.", nature:"Biological — flamingo feathers owe their pink entirely to diet; captive birds fed poorly turn white.", culture:"Art Deco motif. Miami Beach symbol. John Waters' Pink Flamingos. Retro kitsch icon." },
+      { name:"Rose Taupe",   hex:"#905D5D", origin:"A compound of rose (pink) and taupe (mole in French). A dusty pinkish-brown inspired by dried rose petals.", nature:"Present — dried rose petals, red clay pottery, some sandstone formations.", culture:"Sophisticated neutral in fashion and interior design. Pairs with cream in minimalist aesthetics." },
+      { name:"Pale Dogwood", hex:"#E9BFBF", origin:"A lighter variant of dogwood, named after the very palest petal tips of the dogwood flower in early spring.", nature:"Present — dogwood petal edges before full bloom, white peach blossoms, pale magnolias.", culture:"Pantone Colour of the Year 2017. Soft and romantic in wedding palettes." },
+      { name:"Pastel Pink",  hex:"#FFD1DC", origin:"From Italian pastello — chalk-based drawing medium. Pastel colours are named for the chalk-white muted tones of pastel sticks.", nature:"Present — rose quartz, pink sunsets, cherry blossom petals at peak bloom.", culture:"Baby shower aesthetic. Kawaii Japanese culture. Millennial pink internet aesthetics." },
+    ]
   },
-  {
-    name: "Periwinkle", hex: "#8FAADC",
-    origin:  "From Vinca minor, a low-growing plant of European forest floors. Its delicate pale blue petals gave the colour its name in the 18th century.",
-    nature:  "Common — woodland floors across Europe and West Asia in spring; also visible in some butterfly wing patterns.",
-    culture: "Victorian symbol of friendship and fidelity. Dominant colour in Y2K digital aesthetics and early internet design."
+  oranges: {
+    label: "Oranges", emoji: "🧡", accent: "#E07B39",
+    shades: [
+      { name:"Saffron",      hex:"#F4C430", origin:"From Arabic za'faran. The most expensive spice in the world, extracted from Crocus sativus stamens. Colour named after the spice.", nature:"Present — saffron crocus stigmas, some sunflower varieties, golden chanterelle mushrooms.", culture:"Buddhist monk robes, Hindu religious ceremonies, Iranian cuisine. A colour of sacred devotion." },
+      { name:"Amber",        hex:"#FFBF00", origin:"From Arabic anbar, meaning ambergris. Ancient fossilised tree resin, the oldest known colouring material used by humans.", nature:"Present — fossilised pine resin (amber), honey, yellow autumn leaves, tortoiseshell.", culture:"Baltic amber trade routes. Amber Road of antiquity. Jurassic Park. Traffic light colour." },
+      { name:"Tangerine",    hex:"#F28500", origin:"Named after Tangier, the Moroccan port city from which mandarin oranges were first exported to Europe in the 19th century.", nature:"Present — tangerine and mandarin peel, marigold flowers, monarch butterfly wings.", culture:"1960s psychedelic poster art. Hermès iconic orange boxes. Energetic branding colour." },
+      { name:"Burnt Sienna", hex:"#E97451", origin:"Named after Siena, Italy. Raw sienna earth roasted (burnt) to produce a richer reddish-brown — used since the Stone Age.", nature:"Present — iron-rich Tuscan soil, autumn leaves, reddish sandstone cliffs.", culture:"Crayola's most-used brown crayon. Renaissance underpainting. Renoir skin tones." },
+      { name:"Ochre",        hex:"#CC7722", origin:"From Greek okhra meaning pale yellow. Iron oxide clay pigment, the oldest colour used by humans — found in 73,000-year-old cave art.", nature:"Present — yellow and red iron-rich clays worldwide. One of the most abundant earth pigments.", culture:"Lascaux cave paintings, Aboriginal Australian art, Florentine palace facades." },
+      { name:"Terracotta",   hex:"#E2725B", origin:"From Italian terra cotta meaning baked earth. The colour of unglazed fired clay pottery made since 7,000 BC.", nature:"Present — red iron-oxide soil, fired clay, desert rock formations like the American Southwest.", culture:"Tuscan rooftops, Aztec pottery, Terracotta Army of Xi'an. Perennial interior design classic." },
+      { name:"Pumpkin",      hex:"#FF7518", origin:"Named after the Cucurbita pepo squash, from Greek pepon meaning large melon. The deep orange of a ripe pumpkin skin.", nature:"Present — pumpkins, persimmons, autumn maples, tiger lily flowers.", culture:"Halloween. Autumn harvest festivals. Thanksgiving. Seasonal marketing colour globally." },
+      { name:"Mango",        hex:"#FDBE02", origin:"Named after the golden-yellow flesh of Mangifera indica, the mango tree originating in South Asia 4,000 years ago.", nature:"Present — ripe mango flesh, some varieties of tulips, golden chanterelle mushrooms.", culture:"Symbol of India (national fruit). South Asian cuisine and colour palettes. Tropical tourism." },
+      { name:"Coquelicot",   hex:"#FF3800", origin:"French for wild poppy (Papaver rhoeas). The vivid red-orange of poppies growing among wheat fields in Europe.", nature:"Common — wild poppies in European, Asian and North African fields in spring.", culture:"WWI Remembrance symbol. Impressionist painting — Monet's poppy fields. French rural identity." },
+      { name:"Gamboge",      hex:"#E49B0F", origin:"From Cambodia (Camboja in Portuguese). A bright yellow-orange resin from Garcinia trees, used as both pigment and purgative medicine.", nature:"Present — resin from Garcinia hanburyi trees in Southeast Asian forests.", culture:"Medieval manuscript illumination. Traditional Chinese and Southeast Asian Buddhist art." },
+      { name:"Fulvous",      hex:"#E48400", origin:"From Latin fulvus meaning tawny or reddish-yellow. A botanical and zoological colour term for deep yellow-orange animal coats.", nature:"Present — lion fur, tawny owl plumage, autumn grasses, some deer coats.", culture:"Natural history illustration. Used in scientific colour classification since the 18th century." },
+      { name:"Tuscany",      hex:"#C0724A", origin:"Named after the Tuscan landscape in central Italy, whose terracotta buildings and warm earthy soils define this warm orange-brown.", nature:"Present — Tuscan red soil (rich in iron oxide), terracotta roof tiles, dried autumn leaves.", culture:"Italian villa interiors. Mediterranean lifestyle aesthetic. Slow Food and wine tourism." },
+      { name:"Persimmon",    hex:"#EC5800", origin:"From Algonquian pasiminan meaning dried fruit. The vivid orange of the ripe kaki or Sharon fruit, widely grown in East Asia.", nature:"Present — ripe persimmon fruit, some autumn maple leaves, Saharan sandstone.", culture:"Autumn colour in Japan. Symbol of good fortune in Chinese culture. Wabi-sabi aesthetics." },
+      { name:"Rust",         hex:"#B7410E", origin:"Named after iron oxide (Fe₂O₃), the reddish-brown compound formed when iron reacts with oxygen and water over time.", nature:"Present — corroded iron, red laterite soil, some mushroom species, autumn bracken.", culture:"Industrial aesthetic. Rust Belt Americana. Wabi-sabi Japanese beauty of impermanence." },
+      { name:"Apricot",      hex:"#FBCEB1", origin:"From Portuguese albricoque, via Arabic al-barquq, from Greek berikokkia. Named after the fruit's distinctive pale orange-pink flesh.", nature:"Present — ripe apricot flesh, some peach varieties, pale evening clouds at sunset.", culture:"Soft interior design classic. Wedding palette staple. Impressionist painters' skin tones." },
+      { name:"Carrot",       hex:"#ED9121", origin:"Named after the cultivated carrot (Daucus carota), whose orange colour results from beta-carotene accumulated in the root.", nature:"Present — carrots, marigold flowers, goldfish, some autumn leaves, tiger lily stamens.", culture:"Dutch Golden Age carrots were bred orange to honour William of Orange. A political vegetable." },
+      { name:"Marigold",     hex:"#EAA221", origin:"Contraction of Mary's Gold — flowers dedicated to the Virgin Mary in medieval English churchyards.", nature:"Common — Tagetes flowers worldwide. Colour from carotenoid pigments in the petals.", culture:"Day of the Dead in Mexico. Hindu festival offerings. Natural food colouring and dye." },
+      { name:"Tenne",        hex:"#CD5700", origin:"From Old French tanné meaning tanned leather. A heraldic colour — one of the 'stains' in English heraldry, used to indicate dishonour.", nature:"Present — tanned leather, certain raptor plumage, autumn oak leaves.", culture:"English heraldry. One of only two 'stain' colours. Associated with dishonour in armorial bearings." },
+      { name:"Jasper",       hex:"#D05340", origin:"Named after jasper, a microcrystalline quartz stone. Red jasper in particular inspired this warm red-orange gemstone colour.", nature:"Present — red and orange jasper stone in riverbeds worldwide. Iron oxide inclusions cause colour.", culture:"Ancient gemstone used in seals and amulets. Native American spiritual traditions." },
+      { name:"Tigerlily",    hex:"#E2583E", origin:"Named after Lilium lancifolium, the tiger lily of East Asia, whose vivid spotted orange petals are among nature's most dramatic flowers.", nature:"Present — tiger lily blooms across East Asia. Also in some daylily and nasturtium varieties.", culture:"Victorian cottage garden plant. Symbol of confidence and positivity in flower language." },
+    ]
   },
-  {
-    name: "Woad", hex: "#576D8E",
-    origin:  "Old English wad — from Isatis tinctoria, a flowering plant cultivated across Europe for millennia solely to extract its blue dye from crushed leaves.",
-    nature:  "Cultivated — produces small yellow flowers. The blue comes from fermenting the leaves. Now found wild in rocky terrain.",
-    culture: "Gauls and Picts painted their skin with it before battle. Banned in Germany in 1654 when cheaper indigo arrived from India."
+  greens: {
+    label: "Greens", emoji: "💚", accent: "#2E8B57",
+    shades: [
+      { name:"Verdigris",    hex:"#43B3AE", origin:"From French verte-de-Grèce meaning green of Greece. The blue-green patina of oxidised copper, bronze and brass.", nature:"Present — patina on copper roofs and bronze statues, malachite mineral, weathered bronze.", culture:"Statue of Liberty patina. Copper church roofs. Used as pigment in medieval painting." },
+      { name:"Malachite",    hex:"#0BDA51", origin:"From Greek moloche meaning mallow plant. A vivid green copper carbonate mineral with distinctive banded patterns.", nature:"Rare — secondary copper mineral in oxidised ore deposits. Found in Congo, Russia, Australia.", culture:"Russian imperial decorative arts. Hermitage Palace columns. Egyptian amulets and cosmetics." },
+      { name:"Viridian",     hex:"#40826D", origin:"From Latin viridis meaning green. A hydrated chromium oxide pigment invented in France in 1838, replacing the toxic emerald green.", nature:"Absent — synthetic chromium oxide. Unlike emerald green, completely non-toxic.", culture:"Impressionist landscape painting. Cézanne's favourite green. Standard artist paint today." },
+      { name:"Chartreuse",   hex:"#7FFF00", origin:"Named after the Chartreuse Mountains in France, home of the Chartreuse monastery where monks have made their famous liqueur since 1737.", nature:"Present — some tree frogs, glow-worm light, young spring leaves in bright sunlight.", culture:"The liqueur. Neon safety vests. Tennis ball colour. Lime green in pop culture." },
+      { name:"Hooker's Green",hex:"#49796B", origin:"Named after botanical illustrator William Hooker (1779–1832), who developed this mixed pigment for painting plant leaves accurately.", nature:"Present — most mature leaf surfaces, moss, fern fronds, dark conifer needles.", culture:"Standard for botanical illustration since the 19th century. Watercolour painting tradition." },
+      { name:"Celadon",      hex:"#ACE1AF", origin:"From French, thought to derive from the character Céladon in D'Urfé's novel L'Astrée, who wore pale green ribbons.", nature:"Present — pale green jade, sea-glass, some lichen, young fern fronds unfurling.", culture:"Chinese Song Dynasty ceramics. Korean Goryeo porcelain. Prized in East Asian court culture." },
+      { name:"Fern Green",   hex:"#4F7942", origin:"Named after the characteristic medium green of fern fronds (Polypodiopsida), among the oldest plants on Earth.", nature:"Common — fern fronds in temperate forests worldwide. Ancient plant colour unchanged for millions of years.", culture:"Victorian fern craze (pteridomania). Botanical prints. Forest bathing and wellbeing aesthetics." },
+      { name:"Sage",         hex:"#BCB88A", origin:"Named after Salvia officinalis, the common sage herb, whose grey-green leaves have been used in cooking and medicine for millennia.", nature:"Present — sage leaves, olive tree undersides, dusty miller plant, some lichen species.", culture:"Apothecary tradition. Mediterranean cooking. Contemporary sustainable interior design." },
+      { name:"Jade",         hex:"#00A86B", origin:"From Spanish piedra de ijada meaning stone of the flank — jade was believed to cure kidney pain. Brought to Europe from Mesoamerica.", nature:"Rare — jadeite and nephrite minerals in metamorphic rock. Major sources in Myanmar and Guatemala.", culture:"Most sacred stone in Chinese culture. Aztec and Mayan ceremonial objects. New Zealand Māori taonga." },
+      { name:"Emerald",      hex:"#50C878", origin:"From Greek smaragdos via Old French esmeraude. Named after the emerald gemstone, beryl coloured vivid green by chromium.", nature:"Rare — beryl mineral with chromium impurities. Colombia, Brazil and Zambia are main sources.", culture:"Cleopatra's favourite stone. Oz. Irish national colour. Emerald Isle. Healing stone in lore." },
+      { name:"Lincoln Green", hex:"#195905", origin:"Named after Lincoln, England, famous in the Middle Ages for dyeing wool a vivid green using weld and woad together.", nature:"Present — deep forest canopy in summer, some moss species, yew hedgerows.", culture:"Robin Hood's iconic colour. Medieval English archery tradition. Forest outlaw symbolism." },
+      { name:"Reseda",       hex:"#74856C", origin:"From the plant Reseda luteola (weld), a source of yellow-green dye used across Europe from ancient times to the 19th century.", nature:"Present — reseda plant flowers, lichen on limestone, pale olive foliage.", culture:"19th-century fashion grey-green. Monet used reseda green in his Giverny garden palette." },
+      { name:"Moss Green",   hex:"#8A9A5B", origin:"Named after the carpet-like colour of common moss (Bryophyta), among the most ancient of Earth's land plants.", nature:"Common — moss on rocks and forest floors worldwide. One of nature's most ubiquitous greens.", culture:"Japanese moss gardens. Forest floor aesthetic. Natural dyeing tradition using iron mordant." },
+      { name:"Vert Anglais", hex:"#568203", origin:"French for English Green. A specific heraldic and decorative green associated with English garden design and lawn culture.", nature:"Present — well-maintained English lawn grass, cricket pitches, formal garden parterres.", culture:"English garden tradition. Cricket whites on green. Wimbledon lawn tennis courts." },
+      { name:"Terre Verte",  hex:"#8A9A5B", origin:"French for green earth. A natural clay pigment containing iron silicate minerals, used since prehistoric times.", nature:"Present — iron silicate clay deposits (glauconite and celadonite) found in rocks worldwide.", culture:"Renaissance underpainting for flesh tones. Giotto, Cimabue. One of the safest ancient pigments." },
+      { name:"Jungle Green", hex:"#29AB87", origin:"A Crayola crayon name from 1990 evoking the dense humid green of tropical rainforest undergrowth and forest canopy.", nature:"Common — tropical rainforest canopy, banana leaves, giant philodendron, jungle undergrowth.", culture:"Ecological awareness movement. Tropical tourism. Video game environment design." },
+      { name:"Artichoke",    hex:"#8F9779", origin:"Named after the globe artichoke (Cynara scolymus), whose dusty grey-green bracts inspired this muted, sophisticated green.", nature:"Present — artichoke bracts, olive leaf undersides, dried sage, eucalyptus bark.", culture:"Italian and French cuisine aesthetics. Contemporary interior design neutral. Bistro colour palette." },
+      { name:"Laurel",       hex:"#749B62", origin:"Named after the bay laurel tree (Laurus nobilis), the olive-green leaves of which were woven into crowns for Greek and Roman heroes.", nature:"Present — bay laurel and sweet bay leaves, some olive varieties, laurel hedge foliage.", culture:"Olympic laurel wreaths. Poet and Nobel laureate. Symbol of victory and intellectual achievement." },
+      { name:"Feldgrau",     hex:"#4D5D53", origin:"German for field grey. The official colour of Imperial and Wehrmacht German military uniforms from 1907 onwards.", nature:"Present — weathered stone lichen, some succulent plants, elephant skin, storm clouds.", culture:"German WWI and WWII military uniform colour. Now used in fashion as military-inspired grey-green." },
+      { name:"Phthalo Green",hex:"#123524", origin:"Short for phthalocyanine green. A synthetic pigment invented in 1938, valued for its extraordinary tinting strength.", nature:"Absent — entirely synthetic copper phthalocyanine compound. Extraordinary lightfastness.", culture:"Modern oil and acrylic painting. Bob Ross used phthalo green for dark tree shadows." },
+    ]
   },
-  {
-    name: "Smalt", hex: "#003A6C",
-    origin:  "From Italian smalto (enamel). A deep blue pigment made by fusing cobalt ore with ground glass, then pulverising the result into a fine powder.",
-    nature:  "Absent — entirely manufactured, though cobalt itself is mined from the Earth's crust in Congo and Australia.",
-    culture: "Dominant blue in European oil painting from 1500–1700. Used by Vermeer, Rubens, and Rembrandt."
+  yellows: {
+    label: "Yellows", emoji: "💛", accent: "#D4A017",
+    shades: [
+      { name:"Naples Yellow",  hex:"#FADA5E", origin:"Named after the city of Naples, Italy. An ancient pigment made from lead antimonate, used since 3,000 BC in Egyptian glass and ceramics.", nature:"Absent — lead-based synthetic mineral pigment. Replaced by cadmium yellow after 1850.", culture:"Ancient Egyptian faience glaze. Vermeer and Turner. Some of the oldest known yellow in art." },
+      { name:"Indian Yellow",  hex:"#E3A857", origin:"A mysterious pigment imported from India. Later discovered to be made from the urine of cows fed only on mango leaves.", nature:"Biological — urine of mango-fed cows in Mirzapur, India. Production banned in 1908.", culture:"Turner's golden skies, Rembrandt glazes. Banned as cruel. Now replaced by synthetic alternatives." },
+      { name:"Aureolin",       hex:"#FDEE00", origin:"From Latin aureolus meaning golden. A transparent cobalt-based yellow pigment introduced in 1852, valued for its clarity in watercolour.", nature:"Absent — synthetic cobalt potassium nitrite compound. Vivid but now known to fade over time.", culture:"Watercolour painting tradition. Impressionist palette. Now largely replaced by modern alternatives." },
+      { name:"Chrome Yellow",  hex:"#FFA700", origin:"From Greek chroma meaning colour. Lead chromate pigment discovered in 1797. Van Gogh's most used yellow before it began to darken.", nature:"Absent — synthetic lead chromate. Highly toxic. Darkens on exposure to light over time.", culture:"Van Gogh's sunflowers — now browning due to chrome yellow degradation. School bus yellow." },
+      { name:"Weld Yellow",    hex:"#E5CC4C", origin:"From Reseda luteola, the weld or dyer's rocket plant. The most important yellow dye in Europe from antiquity until the 18th century.", nature:"Present — weld plant flowers across Europe and Asia. Used fresh or dried for dyeing.", culture:"Medieval and Renaissance textile dyeing. Combined with woad blue to make Lincoln green." },
+      { name:"Straw",          hex:"#E4D96F", origin:"Named after the dried stalks of wheat, oats and barley after harvest — one of the most ancient natural colour references.", nature:"Present — dried cereal straw, bleached dry grass, pale oak wood, faded cream silk.", culture:"Rural harvest aesthetic. Traditional thatched roof colour. Craft and natural materials." },
+      { name:"Citrine",        hex:"#E4D00A", origin:"From Latin citrina meaning lemon yellow. Named after the citrine quartz gemstone, a pale yellow variety of quartz.", nature:"Present — citrine crystal (irradiated amethyst), lemon rind, some butterfly wings.", culture:"November birthstone. Associated with clarity and abundance in crystal traditions." },
+      { name:"Jonquil",        hex:"#F4CA16", origin:"From Spanish junquillo (little rush) via French jonquille. Named after the yellow daffodil Narcissus jonquilla native to Spain.", nature:"Present — jonquil daffodil flowers, some varieties of buttercup, pale sunflower centres.", culture:"Spring symbol across Europe. Victorian flower language: desire. Easter and renewal." },
+      { name:"Canary",         hex:"#FFEF00", origin:"Named after the Canary Islands, themselves named for dogs (Latin canis) not birds. The vivid yellow of male canary (Serinus canaria) plumage.", nature:"Present — male canary feathers, yellow warbler plumage, dandelion flowers, gorse bushes.", culture:"Canary Wharf. Coal mine safety (canary in the coal mine). Caution and visibility." },
+      { name:"Corn Silk",      hex:"#FFF8DC", origin:"Named after the pale cream-yellow threads (silks) that emerge from the top of an ear of corn (Zea mays) during pollination.", nature:"Present — corn silk, cream magnolia petals, vanilla ice cream, aged ivory.", culture:"American South pastoral aesthetic. Gentle cream in interior design. Whiskey and bourbon colour." },
+      { name:"Buff",           hex:"#F0DC82", origin:"From Old French buffe meaning buffalo. Named after the pale yellow colour of undyed buffalo leather used for military coats.", nature:"Present — undyed leather, dried grass, some limestone rock, shorthorn cattle coat.", culture:"Military buff coats. Washington's Continental Army. Buff in cricket whites tradition." },
+      { name:"Flax",           hex:"#EEDC82", origin:"Named after the pale straw-yellow of dried flax fibres (Linum usitatissimum) before weaving into linen cloth.", nature:"Present — dried flax stalk, natural undyed linen, pale barley fields in late summer.", culture:"Ancient linen tradition. Egyptian mummies wrapped in flax linen. Sustainable fashion." },
+      { name:"Goldenrod",      hex:"#DAA520", origin:"Named after Solidago, the goldenrod wildflower of North American prairies, whose vivid yellow flowers bloom in late summer.", nature:"Common — goldenrod flowers across North America and Europe in late summer and autumn.", culture:"Native American medicinal plant. Wildflower meadow gardening. Pollinator-friendly gardens." },
+      { name:"Lemon Curry",    hex:"#CCA01D", origin:"A Crayola crayon name from 1972. Combines the sharp yellow of lemon with the warm golden brown of curry spice powder.", nature:"Present — turmeric powder (curcumin pigment), dried lemon peel, some mosses on stone.", culture:"1970s Crayola creativity. Represents the fun of synthetic colour naming traditions." },
+      { name:"Mikado",         hex:"#FFC40C", origin:"From the Japanese imperial title Mikado (the Emperor). This deep gold-yellow evokes the colours of the Japanese imperial court.", nature:"Present — chrysanthemum flowers (Japan's imperial symbol), some varieties of marigold.", culture:"Japanese imperial symbol. Gilbert and Sullivan opera The Mikado. East Asia gold tradition." },
+      { name:"Xanthic",        hex:"#F1C32A", origin:"From Greek xanthos meaning yellow. A technical and scientific term for yellow, used especially in chemistry and botany.", nature:"Present — yellow pigment in plants (xanthophylls), autumn leaves, some butterfly wings.", culture:"Scientific nomenclature. Xanthan gum. Xanthophylls in plant photosynthesis." },
+      { name:"Vanilla",        hex:"#F3E5AB", origin:"From Spanish vainilla meaning little pod. Named after the cream-yellow of Vanilla planifolia bean seeds from Mexico.", nature:"Present — vanilla bean pods and seeds, cream, egg yolk, pale beeswax.", culture:"Most popular flavour in the world. Madagascar vanilla trade. Symbol of simple pleasure." },
+      { name:"Gold",           hex:"#FFD700", origin:"From Proto-Germanic gulþą. The colour of the precious metal gold (Au), used as a colour reference since ancient times.", nature:"Rare — elemental gold in riverbeds and veins, some beetles, firefly light, marigolds.", culture:"Universally symbolic of wealth, divinity and achievement across all cultures worldwide." },
+      { name:"Parchment",      hex:"#F1E9D2", origin:"Named after the writing material made from stretched animal skin (vellum), used from antiquity through the Middle Ages.", nature:"Present — dried animal hide, aged ivory, pale wheat fields at harvest, cream sand dunes.", culture:"Medieval manuscripts. Legal documents. Aged paper aesthetic. Sepia nostalgia." },
+      { name:"Sunset",         hex:"#FAD6A5", origin:"Named after the warm golden-orange colour of the sky in the minutes just after the sun dips below the horizon.", nature:"Common — daily at dusk worldwide. Caused by Rayleigh scattering of longer wavelengths.", culture:"Universal symbol of endings and beauty. Turner's famous sunsets. Japanese ukiyo-e prints." },
+    ]
   },
-  {
-    name: "Indigo", hex: "#4B0082",
-    origin:  "From Greek indikon meaning 'from India'. Traded along the Silk Road for millennia; so expensive it was sometimes used as currency.",
-    nature:  "Cultivated — extracted from Indigofera tinctoria leaves. Also found in woad and in some sea snails (murex).",
-    culture: "One of the seven colours of Newton's rainbow. Denim jeans worldwide. Sacred in Hindu and Buddhist traditions."
+  violets: {
+    label: "Violets", emoji: "💜", accent: "#7F52A3",
+    shades: [
+      { name:"Tyrian Purple",  hex:"#66023C", origin:"From Tyre, ancient Phoenician city. Made from the mucus of Murex sea snails. 10,000 snails for 1 gram of dye. Price of empire.", nature:"Biological — hypobranchial gland of Murex brandaris and Haustellum trunculus sea snails.", culture:"Roman emperors. Byzantine church. 'Born in the purple.' Synonymous with absolute power." },
+      { name:"Heliotrope",     hex:"#DF73FF", origin:"From Greek helios (sun) and trope (turning). Named after the heliotrope flower (Heliotropium) that turns towards the sun.", nature:"Present — heliotrope flowers, some orchid species, wisteria blossom in full spring bloom.", culture:"Late Victorian fashion. Art Nouveau floral motifs. Associated with devotion and eternal love." },
+      { name:"Amethyst",       hex:"#9966CC", origin:"From Greek amethystos meaning not intoxicated — the gem was believed to prevent drunkenness if worn or placed in wine.", nature:"Rare — quartz with iron impurities. Major sources in Brazil, Uruguay, Zambia and South Korea.", culture:"February birthstone. Bishop's ring stone. Sobriety symbol. New Age crystal healing." },
+      { name:"Byzantium",      hex:"#702963", origin:"Named after Byzantine Empire (330–1453 AD), where Tyrian purple was the exclusive colour of the imperial family.", nature:"Absent — a reference colour evoking Tyrian purple without requiring the sea snail source.", culture:"Eastern Orthodox church. Byzantine art mosaics. Medieval theological colour symbolism." },
+      { name:"Mauve",          hex:"#E0B0FF", origin:"First synthetic aniline dye, accidentally discovered by 18-year-old William Perkin in 1856 while trying to synthesise quinine.", nature:"Present — some mallow flowers (Malva sylvestris), lavender at dusk, wisteria blossom.", culture:"The first colour of the chemical dye industry. Queen Victoria wore it. Mauve Decade of the 1890s." },
+      { name:"Thistle",        hex:"#D8BFD8", origin:"Named after the pale lilac-purple flower heads of thistles (Cirsium and Carduus), national symbol of Scotland.", nature:"Common — thistle flowers across Europe and Asia. Also in some lilac and buddleia varieties.", culture:"Scottish national emblem. Order of the Thistle. Symbol of resilience and independent spirit." },
+      { name:"Wisteria",       hex:"#C9A0DC", origin:"Named after the Wisteria vine genus, honouring American anatomist Caspar Wistar. Hanging flower clusters of pale blue-violet.", nature:"Present — wisteria flowers in East Asia and North America in spring. Also in some iris petals.", culture:"Symbol of longevity in China and Japan. Romantic garden imagery. Arts and Crafts movement." },
+      { name:"Plum",           hex:"#DDA0DD", origin:"Named after the dark blue-purple skin of the European plum (Prunus domestica). Colour reference since the 17th century.", nature:"Present — plum skin, blackberry, elderberry, some aubergine varieties, dark grape clusters.", culture:"Victorian domestic colour. Deep plum is associated with autumn and harvest richness." },
+      { name:"Lavender",       hex:"#E6E6FA", origin:"From Latin lavare meaning to wash. Named after Lavandula angustifolia, whose purple flowers were used in baths since Roman times.", nature:"Present — lavender flower spikes across Mediterranean regions. Also in some iris varieties.", culture:"Provençal identity. Perfumery. Hygiene and cleanliness symbolism. LGBTQ+ history (lavender menace)." },
+      { name:"Iris",           hex:"#5A4FCF", origin:"Named after Iris, Greek goddess of the rainbow, who also gives her name to the iris flower (Iridaceae), famous for colour variety.", nature:"Present — iris flowers worldwide in extraordinary range of purples, blues and whites.", culture:"Fleur-de-lis model. Van Gogh's most painted flower. Symbol of wisdom and courage in Japan." },
+      { name:"Porphyry",       hex:"#6F2DA8", origin:"From Greek porphyra meaning purple. Named after porphyry rock, an imperial stone quarried only in Egypt and used for Roman emperor sarcophagi.", nature:"Present — porphyry is a real igneous rock with purple-red feldspars in a darker matrix.", culture:"Roman imperial statues and sarcophagi. 'Born in the purple' — Byzantine imperial birthing room was lined in it." },
+      { name:"Glaucous",       hex:"#6082B6", origin:"From Greek glaukos meaning bluish-grey or gleaming. Used in botany to describe blue-green waxy bloom on plant surfaces.", nature:"Present — the waxy bloom on grapes, plums, eucalyptus leaves, some succulent plants.", culture:"Botanical nomenclature since Linnaeus. Glaucous gull, glaucous macaw. Scientific precision." },
+      { name:"Byzantium",      hex:"#8B008B", origin:"A second interpretation of Byzantine imperial purple — deeper and more red-violet, evoking the richest Byzantine court textiles.", nature:"Rare — some tropical orchids, sea urchin spines, some varieties of clematis flower.", culture:"Eastern Orthodox church hierarchy. Byzantine mosaic backgrounds. Ecclesiastical authority." },
+      { name:"Eminence",       hex:"#6C3082", origin:"From the Latin eminentia. The colour of a cardinal's or bishop's vestments — specifically the dignity of high church office.", nature:"Present — some orchid species, violet cabbages, some iris cultivars in deep purple tones.", culture:"Catholic church hierarchy. Cardinal Richelieu. Ecclesiastical purple in western Christianity." },
+      { name:"Grape",          hex:"#6F2DA8", origin:"Named after the skin colour of dark wine grapes (Vitis vinifera), especially varieties like Cabernet Sauvignon and Merlot.", nature:"Present — dark grape skin, blackberry, elderberry, damson plum, some aubergine varieties.", culture:"Wine culture. Dionysus and Bacchus. Mediterranean civilisation. Symbol of abundance and harvest." },
+      { name:"Violet",         hex:"#8F00FF", origin:"From Latin viola, the violet flower. One of seven spectral colours named by Newton. Borderline between visible violet and ultraviolet.", nature:"Present — violet flowers (Viola odorata), some irises, lavender at distance, amethyst.", culture:"Newton's seventh rainbow colour. Just barely visible to human eyes. Often confused with purple." },
+      { name:"Mulberry",       hex:"#C54B8C", origin:"Named after the dark reddish-purple fruit of the mulberry tree (Morus), historically vital as food for silkworms.", nature:"Present — mulberry fruit, blackcurrant, some red wine grape varieties, dark damson.", culture:"Silk Road — mulberry trees essential for silk production. 'Here We Go Round the Mulberry Bush'." },
+      { name:"Aubergine",      hex:"#614051", origin:"French for eggplant (Solanum melongena). The deep purple colour of the ripe aubergine skin, a name more evocative than 'eggplant'.", nature:"Present — aubergine/eggplant skin, dark plum varieties, some purple cabbage, dark iris.", culture:"French culinary aesthetic. Ratatouille. Moussaka. Deep purple in fashion and interior design." },
+      { name:"Petunia",        hex:"#7251AB", origin:"Named after the Petunia flower (Solanaceae family), from Old Tupi petun meaning tobacco plant — a close relative.", nature:"Present — petunia flowers in vivid violet-purple, some verbena, certain agapanthus varieties.", culture:"Summer bedding plant across Europe and Americas. Symbol of quiet wonder in flower language." },
+      { name:"Mallow",         hex:"#987080", origin:"Named after Malva sylvestris, the common mallow wildflower with distinctive pink-purple veined petals found on roadsides.", nature:"Common — mallow flowers across Europe, Asia and North Africa in summer. Also in hollyhocks.", culture:"Traditional herbal medicine. One of the first plants cultivated by humans for food and medicine." },
+    ]
   },
-  {
-    name: "Lapis", hex: "#26619C",
-    origin:  "Short for lapis-lazuli — from Latin lapis (stone) and Arabic lazaward (blue). Mined in the Sar-e-Sang valley of Afghanistan for over 6,000 years.",
-    nature:  "Very rare — only a few mines exist worldwide. The blue is caused by the mineral lazurite within a matrix of white calcite.",
-    culture: "More expensive than gold in the Middle Ages. Reserved for the Virgin Mary's mantle in religious paintings."
+  browns: {
+    label: "Browns", emoji: "🤎", accent: "#7B4F2E",
+    shades: [
+      { name:"Umber",          hex:"#635147", origin:"From Umbria, Italy — a region rich in brown iron-manganese earth. Raw umber used since prehistoric times, found in Lascaux cave paintings.", nature:"Present — iron and manganese-rich clay soil, dried autumn leaves, tree bark, dark soil.", culture:"Old Master underpainting. Rembrandt's shadows. One of the most ancient pigments known." },
+      { name:"Sienna",         hex:"#A0522D", origin:"Named after Siena, Italy. Iron oxide earth pigment mined near the city, used since antiquity. Richer when burnt (calcined).", nature:"Present — Tuscan iron-rich clay soil, terracotta, brown sandstone, autumn bracken.", culture:"Crayola's most-used crayon. Standard for painting wood and earth in academic tradition." },
+      { name:"Bistre",         hex:"#3D2B1F", origin:"From French bistre. A warm brown ink made by boiling chimney soot or beech wood soot and water, used by Rembrandt and Claude Lorrain.", nature:"Present — chimney soot, dark peaty soil, black tea stain, very dark walnut shell.", culture:"Rembrandt's wash drawings. Claude Lorrain's skies. Standard drawing ink before sepia." },
+      { name:"Sepia",          hex:"#704214", origin:"From Greek sepia meaning cuttlefish. The dark brown ink secreted by the common cuttlefish Sepia officinalis as a defence mechanism.", nature:"Biological — cuttlefish ink gland. Also octopus ink. A cephalopod defence mechanism.", culture:"Victorian photography. Nostalgic photo filters. Old newspaper ink. Faded memory aesthetic." },
+      { name:"Tan",            hex:"#D2B48C", origin:"From Latin tannum meaning oak bark, used in the tanning of leather — the pale brown of undyed hide processed with oak tannins.", nature:"Present — undyed leather, beach sand, pale oak wood, lion fur, wheat field at harvest.", culture:"Soldier tan lines. American summer aesthetic. Leather goods tradition. Skin tone reference." },
+      { name:"Chocolate",      hex:"#7B3F00", origin:"From Nahuatl xocolatl meaning bitter water — the Aztec cacao drink. Named after the colour of roasted cacao (Theobroma cacao) beans.", nature:"Present — roasted cacao beans, dark soil after rain, espresso coffee, chestnut shells.", culture:"Aztec sacred drink. Belgian confectionery tradition. Valentine's Day. Luxury comfort food." },
+      { name:"Caramel",        hex:"#C68642", origin:"From Spanish caramelo, possibly from Latin calor (heat) and mel (honey). The warm amber-brown of sugar heated to 160–180°C.", nature:"Present — roasted grain and nuts, toffee, brown sugar crystals, autumn oak leaves.", culture:"French confectionery. Crème brûlée. Caramel latte culture. Warm brown in beauty aesthetics." },
+      { name:"Mahogany",       hex:"#C04000", origin:"Named after the mahogany tree (Swietenia mahagoni), prized for its warm reddish-brown hardwood since colonial Caribbean trade.", nature:"Present — mahogany heartwood, some clay soils in tropical regions, autumn oak leaves.", culture:"Colonial furniture tradition. Georgian cabinet making. Symbol of luxury British interiors." },
+      { name:"Chestnut",       hex:"#954535", origin:"Named after the ripe fruit of the sweet chestnut tree (Castanea sativa), whose burnished brown shell is distinctive in autumn.", nature:"Present — horse and sweet chestnut fruit shells, some cattle breeds, chestnut horse coats.", culture:"Autumn harvest tradition. Roasting chestnuts. French marrons glacés. Chestnut horse breeding." },
+      { name:"Walnut",         hex:"#773F1A", origin:"Named after the outer hull of the black walnut (Juglans nigra), which stains hands and fabric a rich dark brown with juglone.", nature:"Present — walnut hulls and heartwood, dark coffee, some dark clay-rich soils.", culture:"Traditional wood stain and furniture. 18th-century English cabinet making. Natural ink and dye." },
+      { name:"Russet",         hex:"#80461B", origin:"From Old French rousset (reddish). A coarse reddish-brown homespun fabric worn by English peasants in the Middle Ages.", nature:"Present — autumn oak and beech leaves, some apple varieties, red squirrel fur.", culture:"Shakespeare's 'russet mantle' of dawn. Peasant fabric in medieval England. Autumn leaf colour." },
+      { name:"Tawny",          hex:"#CD853F", origin:"From Old French tanné (tanned). The warm orange-brown of tanned leather or the plumage of the tawny owl (Strix aluco).", nature:"Present — tawny owl plumage, lion coat, autumn grasses, dried bracken fern.", culture:"Heraldry colour term. Tawny port wine. Wildlife illustration. Natural history taxonomy." },
+      { name:"Fulvous",        hex:"#E48400", origin:"From Latin fulvus meaning tawny-yellow. A zoological and botanical term for the deep yellow-brown of certain animal pelts.", nature:"Present — lion fur, tawny owl, autumn meadow grass, some deer species in summer coat.", culture:"Natural history illustration since the 17th century. Scientific colour standardisation." },
+      { name:"Vandyke Brown",  hex:"#664228", origin:"Named after Flemish painter Anthony van Dyck (1599–1641), who used this deep brown extensively for dark glazes in portraits.", nature:"Present — naturally occurring peat and lignite deposits. Also called Cassel earth.", culture:"Van Dyck's shadow glazes. Portrait tradition. Old Master technique. Liguria brown earth." },
+      { name:"Mummy Brown",    hex:"#6B4226", origin:"A warm brown pigment made from ground Egyptian mummies. Used by artists until the 19th century when its origin became widely known.", nature:"Biological — literally ground human and cat mummified remains from Egyptian catacombs.", culture:"Discontinued in horror when artists learned what it was made from. Now a cautionary art history tale." },
+      { name:"Taupe",          hex:"#483C32", origin:"From French taupe meaning mole. Named after the dark greyish-brown of the European mole (Talpa europaea) fur coat.", nature:"Biological — common mole fur. Also in slate rock, dried olive skin, elephant skin.", culture:"Sophisticated interior design neutral. Fashion staple. The neutral that replaced beige." },
+      { name:"Café au Lait",   hex:"#A67B5B", origin:"French for coffee with milk. A warm medium brown inspired by the precise colour of espresso diluted with hot steamed milk.", nature:"Present — milky coffee, some wood varieties, beach sand at certain tide stages.", culture:"French café culture. Breakfast ritual. A warm neutral in cosmetics and interior design." },
+      { name:"Liver",          hex:"#674C47", origin:"Named after the dark reddish-brown colour of cooked animal liver. A colour reference used in horse coat colour genetics since the 18th century.", nature:"Biological — cooked liver appearance. Also in dark bay horse coats (liver chestnut).", culture:"Horse breeding terminology. Liver chestnut horses. Used in sporting dog breed standards." },
+      { name:"Puce",           hex:"#CC8899", origin:"From French puce meaning flea. The dark pinkish-brown of a flea, popularised by Marie Antoinette at Versailles.", nature:"Biological — the body colour of a common flea (Pulex irritans) seen against pale skin.", culture:"Marie Antoinette's controversial colour. Louis XVI's mockery of it at Versailles court." },
+      { name:"Chamoisee",      hex:"#A0785A", origin:"From French chamois — the soft leather made from chamois antelope (Rupicapra rupicapra) skin. A warm beige-brown.", nature:"Present — chamois antelope coat, undyed suede, pale sand, dried grass in late summer.", culture:"Alpine hunting tradition. Chamois leather cleaning cloths. Car polishing tradition." },
+    ]
   },
-  {
-    name: "Majorelle", hex: "#5B3F93",
-    origin:  "Named after French painter Jacques Majorelle, who obsessively painted his Marrakech garden villa in this intense cobalt-violet hue in 1937.",
-    nature:  "Absent — invented as an architectural colour. No direct natural equivalent, though some morpho butterfly wings come close.",
-    culture: "Yves Saint Laurent bought the garden in 1980, cementing the colour in fashion history. A symbol of Morocco."
+  greys: {
+    label: "Greys", emoji: "🩶", accent: "#718096",
+    shades: [
+      { name:"Charcoal",     hex:"#36454F", origin:"Named after charcoal — partially combusted wood or bone. One of the first materials used by humans for drawing, since 30,000 BC.", nature:"Present — charred wood, dark basalt rock, some wet slate, storm cloud underbellies.", culture:"Drawing medium. Industrial aesthetic. Sleek modern design. Tailored suit tradition." },
+      { name:"Slate",        hex:"#708090", origin:"Named after slate, a fine-grained metamorphic rock quarried for roofing tiles, especially in Wales and northern England.", nature:"Present — slate rock, grey shale, rain-wet stone, North Sea winter water.", culture:"Welsh identity. Roofing tradition. School blackboards. Slate as writing surface for centuries." },
+      { name:"Gunmetal",     hex:"#2a3439", origin:"Named after the grey alloy of copper, tin and zinc used to cast cannon barrels and gun parts — a standard military material since the 17th century.", nature:"Absent — an alloy of metals. Evokes the colour of blued carbon steel used in firearm barrels.", culture:"Military industrial aesthetic. Luxury watch cases. Dark masculine design language." },
+      { name:"Ash Grey",     hex:"#B2BEB5", origin:"Named after the pale grey colour of cold wood ash — one of the most ancient colour references, universal across human cultures.", nature:"Present — cold fireplace ash, pumice stone, some birch bark, dry beach sand.", culture:"Ash Wednesday. Mourning colour in ancient Rome. Memento mori. Phoenix from the ashes." },
+      { name:"Payne's Grey", hex:"#536878", origin:"Named after watercolour artist William Payne (c.1760–1830), who invented this blue-grey mixture as a convenient shadow colour.", nature:"Present — approaches the blue-grey of overcast winter skies, calm deep sea at distance.", culture:"Watercolour painting tradition. Illustration. The standard 'convenient dark' for artists." },
+      { name:"Davy's Grey",  hex:"#555555", origin:"Named after Henry Davy, who introduced this pigment made from powdered slate in the early 19th century for watercolour painters.", nature:"Present — powdered slate, dark wet beach pebbles, some concrete and limestone.", culture:"Watercolour landscape painting tradition. The muted grey of English Romantic painters." },
+      { name:"Feldgrau",     hex:"#4D5D53", origin:"German for field grey. Official colour of Imperial German and Wehrmacht military uniforms from 1907 to 1945.", nature:"Present — weathered stone lichen, some succulent plants, elephant skin, storm clouds.", culture:"WWI and WWII German uniform. Influential on modern olive-grey fashion and military aesthetics." },
+      { name:"Marengo",      hex:"#4C5356", origin:"Named after the Battle of Marengo (1800) where Napoleon defeated Austria. A dark grey flecked with light — like the battlefield terrain.", nature:"Present — granite with mica flecks, some pebbles with quartz inclusions, dark feathers.", culture:"Napoleon's grey horse Marengo who carried him at Waterloo. Military grey in menswear." },
+      { name:"Cadet Grey",   hex:"#91A3B0", origin:"Named after the uniform colour of military cadets, a blue-grey standard for officer academies across Europe and America.", nature:"Present — pale winter sky, some dove plumage, fog over water, grey sea on calm days.", culture:"Military academy tradition. West Point grey. A classic menswear suiting colour." },
+      { name:"Battleship",   hex:"#848482", origin:"Named after the specific grey paint used on naval battleships — designed to reduce visibility at sea in grey weather conditions.", nature:"Present — calm open sea in overcast conditions, storm clouds, wet concrete.", culture:"Naval tradition since the Dreadnought era. WWII naval warfare. Grey as camouflage at sea." },
+      { name:"Silver",       hex:"#C0C0C0", origin:"From Proto-Germanic silubra. Named after the precious metal silver (Ag), whose mirror-like surface has a characteristic cool grey-white sheen.", nature:"Rare — elemental silver in ore veins, sometimes in native form. Also in fish scales and some moths.", culture:"Second most valuable metal. Sterling silverware. Silver screen. 25th wedding anniversary." },
+      { name:"Smoke",        hex:"#738276", origin:"Named after the pale grey-green colour of wood smoke rising from a fire. A soft, atmospheric grey with green undertones.", nature:"Present — wood smoke, morning mist over forest, sage plant colour, lichen on rock.", culture:"Atmospheric perspective in painting. Japanese wabi-sabi. Smoked glass and mirror design." },
+      { name:"Concrete",     hex:"#A8A9AD", origin:"Named after reinforced concrete, the defining material of 20th-century architecture. The grey of Brutalist buildings worldwide.", nature:"Absent — a manufactured material of Portland cement, sand and aggregate.", culture:"Brutalist architecture. Le Corbusier. Urban industrial aesthetic. Contemporary minimalism." },
+      { name:"Pewter",       hex:"#96A8A1", origin:"From Old French peutre, an alloy of tin (85–99%), with antimony and copper. Used for tableware from Roman times through the 18th century.", nature:"Absent — a manufactured alloy. The grey comes from tin's natural surface oxidation.", culture:"Colonial American tableware. Traditional British tankards. Pewter Society. Pub culture." },
+      { name:"Fog",          hex:"#A7AEB4", origin:"Named after the atmospheric condition of suspended water droplets reducing visibility — a universal grey-white colour reference.", nature:"Present — sea fog, morning mist in valleys, haar (North Sea fog), steam over hot springs.", culture:"San Francisco identity. London Particular (pea-souper). Atmospheric painting tradition." },
+      { name:"Stone",        hex:"#928E85", origin:"A generic colour term named after the warm grey of natural building stone — limestone, sandstone and granite used in architecture worldwide.", nature:"Present — limestone, granite, sandstone, flint, gravel. The most abundant grey in nature.", culture:"English country house aesthetic. Natural building tradition. Cotswolds village identity." },
+      { name:"Graphite",     hex:"#474A51", origin:"From Greek graphein meaning to write. Named after graphite (carbon allotrope), the material in pencil leads used for drawing since 1564.", nature:"Present — graphite mineral in metamorphic rock. One of two natural forms of pure carbon.", culture:"Pencil drawing. The discovery of graphite at Borrowdale in 1565 changed art history." },
+      { name:"Titanium",     hex:"#878681", origin:"Named after the metal titanium (Ti), named for the Titans of Greek mythology. Titanium white pigment revolutionised 20th-century painting.", nature:"Present — titanium ore (ilmenite) in black sand beaches, rutile crystal inclusions.", culture:"Titanium white replaced lead white. Aerospace. Jeff Koons' mirror sculptures." },
+      { name:"Driftwood",    hex:"#BFAE99", origin:"Named after the pale silvery-grey of wood bleached and weathered by prolonged immersion in saltwater and UV exposure.", nature:"Present — bleached wood on beaches worldwide. Grey-silver due to UV degradation of lignin.", culture:"Coastal interior design. Wabi-sabi. Beach combing tradition. Natural materials aesthetic." },
+      { name:"Lead",         hex:"#212121", origin:"Named after the metal lead (Pb), one of the heaviest and densest metals, with a distinctive blue-grey to dark grey surface appearance.", nature:"Present — galena (lead ore) mineral, some dark basalt, night sky away from city lights.", culture:"Lead pipes. Lead paint (toxic, now banned). Lead type in printing. Lead coffins." },
+    ]
   },
-  {
-    name: "Zaffre", hex: "#0014A8",
-    origin:  "From Arabic safra meaning yellow — an ironic name. Zaffre is crude cobalt oxide, used since the 16th century to create brilliant blue glass and ceramics.",
-    nature:  "Absent — processed from cobalt ore. The raw mineral smaltite from which it is made has a silver-grey appearance.",
-    culture: "Used in Delftware, Chinese blue-and-white porcelain, and stained glass windows across medieval Europe."
+  naturals: {
+    label: "Naturals", emoji: "🌿", accent: "#8A7A6A",
+    shades: [
+      { name:"Sand",         hex:"#C2B280", origin:"From Old English sand. Named after the pale beige of quartz sand particles — silica dioxide (SiO₂) weathered from granite and sandstone.", nature:"Common — beach and desert sand worldwide. Colour from quartz, feldspar and shell fragments.", culture:"Desert landscapes. Sandcastles. Sand timer as symbol of time. Middle Eastern architecture." },
+      { name:"Ecru",         hex:"#C2B280", origin:"From French écru meaning raw, unbleached. The natural cream-beige colour of unprocessed linen, silk or wool before any treatment.", nature:"Present — natural unbleached linen, raw silk, natural cotton boll, undyed wool fleece.", culture:"Sustainable fashion. Linen tablecloths. Natural textile tradition. Minimalist aesthetics." },
+      { name:"Linen",        hex:"#FAF0E6", origin:"From Latin linum (flax plant). The pale ivory-cream of woven flax fibre fabric, one of the oldest textiles — used in Egypt 30,000 years ago.", nature:"Present — woven flax fibre, natural cotton, bleached bone, dried elderflower.", culture:"Egyptian mummy wrappings. Mediterranean table linen. French Riviera interior design." },
+      { name:"Bone",         hex:"#E3DAC9", origin:"Named after the pale cream-white of dried animal bone, one of the most ancient colour references. Bone white is warm, not pure white.", nature:"Present — dried mammal bones, ivory, dry coral, some limestone, antler.", culture:"Ivory piano keys. Bone china. Memento mori. Natural history museum displays." },
+      { name:"Parchment",    hex:"#F1E9D2", origin:"Named after writing material made from stretched animal skin (vellum). The warm cream of processed and dried goat or sheep skin.", nature:"Present — dried skin, aged ivory, pale cream sand, the inner bark of some trees.", culture:"Medieval manuscripts. Legal scrolls. Antique book pages. Nostalgic aged paper effect." },
+      { name:"Ivory",        hex:"#FFFFF0", origin:"From Latin ebur, Egyptian ivory. Named after the dentine of elephant and mammoth tusks — warm white with cream undertones.", nature:"Present — elephant tusks, sperm whale teeth, hippopotamus teeth, walrus ivory.", culture:"Piano keys. Billiard balls. International ivory trade (now largely banned). Chinese carved ivory." },
+      { name:"Cream",        hex:"#FFFDD0", origin:"From Old French cresme. Named after dairy cream — the fat layer that rises to the top of whole milk when left to settle.", nature:"Present — dairy cream, magnolia petals, gardenia flowers, aged paper, vanilla bean.", culture:"Cream of the crop. English afternoon tea. Vanilla ice cream. Soft white in interior design." },
+      { name:"Almond",       hex:"#EFDECD", origin:"Named after the inner seed of the almond (Prunus dulcis), whose pale beige-pink skin inspired this warm neutral.", nature:"Present — raw almond skin, some peach varieties, pale birch bark, dried chamomile flowers.", culture:"Almond blossom — first sign of spring in Mediterranean regions. Middle Eastern pastry tradition." },
+      { name:"Dune",         hex:"#C6B49A", origin:"Named after sand dunes — the curved mounds of wind-blown sand characteristic of deserts and beaches. Evokes Saharan and Arabian landscapes.", nature:"Present — wind-sculpted sand deposits, sandstone, dry savannah grass, pale desert fox fur.", culture:"Saharan landscape. Frank Herbert's Dune. Desert architecture. Earth-toned interior design." },
+      { name:"Chamomile",    hex:"#F5DEB3", origin:"Named after the pale golden-yellow of chamomile (Matricaria chamomilla) flower petals used for herbal tea since ancient Egypt.", nature:"Present — chamomile flowers, dried wheat fields, pale cornfields at harvest, natural straw.", culture:"Herbal medicine tradition. Bedtime tea. Natural hair lightening. Roman chamomile in perfumery." },
+      { name:"Wheat",        hex:"#F5DEB3", origin:"Named after the pale golden colour of ripe wheat (Triticum aestivum) stalks ready for harvest — a universal colour reference.", nature:"Present — ripe wheat fields in late summer, dried grass, pale hay bales, barley straw.", culture:"Agricultural civilisation. Harvest festivals worldwide. The colour of bread and domestication." },
+      { name:"Hemp",         hex:"#9B8E7C", origin:"Named after Cannabis sativa fibre in its natural state — a warm, slightly greenish-brown. One of the oldest cultivated plants.", nature:"Present — hemp rope, unbleached hemp cloth, jute fibre, dried grasses, sisal.", culture:"Ancient rope and sailcloth. Sustainable textiles revival. Natural fibre movement." },
+      { name:"Flint",        hex:"#6A6056", origin:"Named after flint (cryptocrystalline quartz), the dark grey-brown stone used for tools and fire since the Stone Age.", nature:"Present — flint nodules in chalk and limestone. Found on beaches of the English Channel.", culture:"Flint tools — fundamental to human prehistory. Flintlock firearms. East Anglian flint architecture." },
+      { name:"Clay",         hex:"#BA9572", origin:"From Old English clæg. Named after natural clay — hydrated aluminium silicate minerals weathered from feldspar in granite and similar rocks.", nature:"Present — river clay, red terracotta soil, pottery clay deposits worldwide.", culture:"Pottery — the oldest human craft. Adobe building. Chinese porcelain. Sculptor's medium." },
+      { name:"Bark",         hex:"#8B6914", origin:"Named after the outer protective layer of tree bark — varying from pale birch to deep oak, this mid-brown evokes old-growth forest trees.", nature:"Present — oak, elm and walnut bark, cinnamon sticks (inner bark of Cinnamomum verum).", culture:"Tree identification. Natural dyeing (oak bark tannin). Birch bark canoes. Forest aesthetics." },
+      { name:"Moss Agate",   hex:"#8A9A5B", origin:"Named after moss agate gemstone — a type of chalcedony with green mineral inclusions resembling moss, found in India and the American West.", nature:"Present — moss agate stones, lichen on granite, green-brown forest floor, dried moss.", culture:"Crystal healing. Gemstone collectors. Connection to nature and grounding." },
+      { name:"Limestone",    hex:"#D5C8A4", origin:"Named after limestone (calcium carbonate), the sedimentary rock formed from marine organism shells over millions of years.", nature:"Present — chalk cliffs, limestone pavements, cream-coloured building stone, coral reefs.", culture:"Classical architecture (Parthenon, Notre-Dame). Portland limestone. White Cliffs of Dover." },
+      { name:"Oatmeal",      hex:"#D3C4A8", origin:"Named after the pale warm beige of cooked oatmeal — rolled oats (Avena sativa) cooked in water or milk.", nature:"Present — cooked oats, natural undyed wool, dried grasses, pale linen cloth.", culture:"Scottish breakfast tradition. Natural textile colour. Neutral interior design base colour." },
+      { name:"Driftwood",    hex:"#A4907C", origin:"Named after the warm grey-brown of wood bleached and weathered by saltwater and UV exposure on beaches worldwide.", nature:"Present — sea-worn wood, bleached timber, some dune grasses, weathered fence posts.", culture:"Coastal interior design. Beach combing. Japanese wabi-sabi — beauty in impermanence." },
+      { name:"Mushroom",     hex:"#8D7C72", origin:"Named after the warm grey-brown of common mushroom (Agaricus bisporus) flesh and gills — one of the most sophisticated neutral tones.", nature:"Present — field mushrooms, dried porcini, oyster mushroom gills, autumn leaf mould.", culture:"Sophisticated neutral in fashion. Interior design base. Umami — culinary fifth taste culture." },
+    ]
   },
-  {
-    name: "Bice", hex: "#4F84C4",
-    origin:  "Medieval pigment made by grinding azurite to a fine powder. Less pure and less saturated than ultramarine, it was the affordable alternative for artists.",
-    nature:  "Rare — same copper ore origin as azurite. The coarser the grind, the paler the hue — a unique optical property.",
-    culture: "Widely used in Gothic manuscript illumination and panel painting. Largely replaced by Prussian blue after 1704."
-  },
-  {
-    name: "Nattier Blue", hex: "#6A8EAE",
-    origin:  "Named after Jean-Marc Nattier (1685–1766), official portraitist of Louis XV's court, who systematically dressed his female subjects in this soft grey-blue.",
-    nature:  "Rare in nature — approaches the colour of a cloudy winter sky or the plumage of a grey heron.",
-    culture: "Emblem of 18th-century French aristocratic femininity. Often paired with silver and gold in Rococo interiors."
-  },
-  {
-    name: "Sèvres Blue", hex: "#6082B6",
-    origin:  "Developed at the Royal Manufactory of Sèvres under Louis XV around 1749. The exact formula was a state secret, protected by royal patent from 1756.",
-    nature:  "Absent — a manufactured enamel glaze colour, though it evokes the pale winter sky of the Île-de-France.",
-    culture: "Synonymous with French luxury porcelain. Appears in royal services gifted to foreign heads of state across Europe."
-  },
-  {
-    name: "Pavonine", hex: "#4E82B4",
-    origin:  "From Latin pavo meaning peacock. Describes the iridescent blue-green sheen of the neck feathers of a male peacock, which shifts with the angle of light.",
-    nature:  "Present — peacock neck feathers, kingfisher plumage, some tropical fish scales and morpho butterfly wings.",
-    culture: "Symbol of immortality and watchfulness in Christianity. Pride and vanity in western allegory. Royalty in India."
-  },
-  {
-    name: "Turchino", hex: "#2E86AB",
-    origin:  "Old Italian word for turquoise-blue. Derived from the Persian turquoise stone, which reached Europe via Ottoman Turkey, hence 'pierre turquoise' (Turkish stone).",
-    nature:  "Present — turquoise mineral deposits in Iran, Tibet, and the American Southwest. Also in shallow tropical lagoons.",
-    culture: "Sacred to the Aztecs and Navajo. A protective stone in Persian and Turkish culture. Trendy in Renaissance Venetian painting."
-  },
-  {
-    name: "Pewter Blue", hex: "#627D98",
-    origin:  "Named after oxidised pewter, the tin-lead alloy used for tableware since Roman times. The blue-grey oxide that forms on its surface inspired the colour name.",
-    nature:  "Present — overcast winter skies, slate rooftops, grey whale skin, aged driftwood near the sea.",
-    culture: "Prized in Scandinavian design and Nordic faience. Associated with restraint and durability in French bourgeois interiors."
-  },
-  {
-    name: "Camaïeu", hex: "#5B8DB8",
-    origin:  "From the French painting technique camaïeu — painting an entire scene using gradations of a single colour only. Word origin is obscure, possibly from chamahieu.",
-    nature:  "Present — a fair-weather sky in late afternoon, calm open ocean at distance, glacier meltwater lakes.",
-    culture: "Refined technique in French 18th-century decorative arts. Revived in Art Deco and modernist graphic design."
-  },
-  {
-    name: "Steel Blue", hex: "#4682B4",
-    origin:  "Named after polished steel, whose cold blue-grey mirror surface was standardised as a colour reference in early 20th-century industrial design manuals.",
-    nature:  "Present — glacial meltwater, blue steel kingfisher backs, cold deep-sea water far from the coast.",
-    culture: "Popularised in 1930s automotive and aviation design. A staple of corporate and tech visual identity today."
-  },
-  {
-    name: "Watchet", hex: "#7BA7BC",
-    origin:  "An Old English word of uncertain origin, possibly from the Welsh gwachet. One of the oldest recorded colour names in the English language, mentioned by Chaucer.",
-    nature:  "Present — pale winter skies at noon, shallow coastal water over white sand, faded blue linen.",
-    culture: "Used in medieval English heraldry. Appears in Shakespeare's Henry IV. Revived by Arts & Crafts movement dyers."
-  },
-  {
-    name: "Wisteria", hex: "#7B68B5",
-    origin:  "Named after the Wisteria genus of flowering vines, itself honouring American anatomist Caspar Wistar (1761–1818). The lavender-blue of its hanging flower clusters.",
-    nature:  "Present — wisteria flowers across East Asia and North America in spring. Also in some lavender varieties and iris petals.",
-    culture: "Symbol of longevity and poetry in Chinese and Japanese culture. Associated with nostalgia and transience in literature."
-  },
-];
+};
 
-// ─── STATE ─────────────────────────────────────────────
+// ══════════════════════════════════════════════════════
+// AUDIO — synthetic sound effects
+// ══════════════════════════════════════════════════════
+const AudioCtx = window.AudioContext || window.webkitAudioContext;
+let audioCtx = null;
+
+function ensureAudio() {
+  if (!audioCtx) audioCtx = new AudioCtx();
+}
+
+function playFlip() {
+  try {
+    ensureAudio();
+    const o = audioCtx.createOscillator();
+    const g = audioCtx.createGain();
+    o.connect(g); g.connect(audioCtx.destination);
+    o.type = 'sine';
+    o.frequency.setValueAtTime(440, audioCtx.currentTime);
+    o.frequency.exponentialRampToValueAtTime(880, audioCtx.currentTime + 0.08);
+    g.gain.setValueAtTime(0.18, audioCtx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.12);
+    o.start(); o.stop(audioCtx.currentTime + 0.12);
+  } catch(e) {}
+}
+
+function playNoMatch() {
+  try {
+    ensureAudio();
+    const o = audioCtx.createOscillator();
+    const g = audioCtx.createGain();
+    o.connect(g); g.connect(audioCtx.destination);
+    o.type = 'sine';
+    o.frequency.setValueAtTime(330, audioCtx.currentTime);
+    o.frequency.exponentialRampToValueAtTime(220, audioCtx.currentTime + 0.25);
+    g.gain.setValueAtTime(0.18, audioCtx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.3);
+    o.start(); o.stop(audioCtx.currentTime + 0.3);
+  } catch(e) {}
+}
+
+function playWellDone() {
+  try {
+    ensureAudio();
+    // Clap sound: filtered noise bursts
+    for (let i = 0; i < 3; i++) {
+      setTimeout(() => {
+        const buf  = audioCtx.createBuffer(1, audioCtx.sampleRate * 0.08, audioCtx.sampleRate);
+        const data = buf.getChannelData(0);
+        for (let j = 0; j < data.length; j++) data[j] = (Math.random() * 2 - 1) * (1 - j / data.length);
+        const src  = audioCtx.createBufferSource();
+        const filt = audioCtx.createBiquadFilter();
+        const gain = audioCtx.createGain();
+        filt.type = 'bandpass'; filt.frequency.value = 1200; filt.Q.value = 0.5;
+        src.buffer = buf;
+        src.connect(filt); filt.connect(gain); gain.connect(audioCtx.destination);
+        gain.gain.setValueAtTime(0.6, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.08);
+        src.start();
+      }, i * 200);
+    }
+    // "well done" musical tone after claps
+    setTimeout(() => {
+      const notes = [523, 659, 784];
+      notes.forEach((freq, i) => {
+        setTimeout(() => {
+          const o = audioCtx.createOscillator();
+          const g = audioCtx.createGain();
+          o.connect(g); g.connect(audioCtx.destination);
+          o.type = 'triangle';
+          o.frequency.value = freq;
+          g.gain.setValueAtTime(0.2, audioCtx.currentTime);
+          g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.25);
+          o.start(); o.stop(audioCtx.currentTime + 0.25);
+        }, i * 130);
+      });
+    }, 650);
+  } catch(e) {}
+}
+
+function playWin() {
+  try {
+    ensureAudio();
+    const melody = [523, 659, 784, 1047];
+    melody.forEach((freq, i) => {
+      setTimeout(() => {
+        const o = audioCtx.createOscillator();
+        const g = audioCtx.createGain();
+        o.connect(g); g.connect(audioCtx.destination);
+        o.type = 'triangle';
+        o.frequency.value = freq;
+        g.gain.setValueAtTime(0.22, audioCtx.currentTime);
+        g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.35);
+        o.start(); o.stop(audioCtx.currentTime + 0.35);
+      }, i * 150);
+    });
+  } catch(e) {}
+}
+
+// ══════════════════════════════════════════════════════
+// GAME STATE
+// ══════════════════════════════════════════════════════
 let gameId    = null;
 let myRole    = null;
 let myName    = '';
 let gameState = null;
 let stopListen = null;
+let selectedFamily = null;
 
-// ─── UTILS ─────────────────────────────────────────────
 function shuffle(arr) {
   const a = [...arr];
   for (let i = a.length - 1; i > 0; i--) {
@@ -163,26 +394,24 @@ function shuffle(arr) {
   }
   return a;
 }
-function buildDeck() {
-  return shuffle(
-    SHADES.flatMap((s, i) => [
-      { id: i, name: s.name, hex: s.hex, origin: s.origin, nature: s.nature, culture: s.culture },
-      { id: i, name: s.name, hex: s.hex, origin: s.origin, nature: s.nature, culture: s.culture },
-    ])
-  ).map((c, pos) => ({ ...c, pos, flipped: false, matched: false }));
+
+function buildDeck(familyKey) {
+  const shades = FAMILIES[familyKey].shades;
+  return shuffle(shades.flatMap((s, i) => [
+    { id: i, name: s.name, hex: s.hex, origin: s.origin, nature: s.nature, culture: s.culture },
+    { id: i, name: s.name, hex: s.hex, origin: s.origin, nature: s.nature, culture: s.culture },
+  ])).map((c, pos) => ({ ...c, pos, flipped: false, matched: false }));
 }
-function genId() {
-  return Math.random().toString(36).slice(2, 8).toUpperCase();
-}
+function genId() { return Math.random().toString(36).slice(2, 8).toUpperCase(); }
 function gameRef(id) { return ref(db, `games/${id}`); }
 
-// ─── FIREBASE ──────────────────────────────────────────
-async function createGame(hostName) {
+async function createGame(hostName, familyKey) {
   const id = genId();
   await set(gameRef(id), {
     id, host: hostName, guest: null,
     scores: { host: 0, guest: 0 },
-    turn: 'host', flipped: [], deck: buildDeck(),
+    turn: 'host', flipped: [], deck: buildDeck(familyKey),
+    family: familyKey,
     status: 'waiting', lastEvent: null,
   });
   return id;
@@ -191,7 +420,7 @@ async function joinGame(id, guestName) {
   const snap = await get(gameRef(id));
   if (!snap.exists()) throw new Error('Game not found — check the code.');
   const s = snap.val();
-  if (s.guest)           throw new Error('This game is already full.');
+  if (s.guest)               throw new Error('This game is already full.');
   if (s.status !== 'waiting') throw new Error('Game already started.');
   await update(gameRef(id), { guest: guestName, status: 'playing' });
 }
@@ -199,7 +428,9 @@ function listenGame(id, cb) {
   return onValue(ref(db, `games/${id}`), snap => { if (snap.exists()) cb(snap.val()); });
 }
 
-// ─── GAME LOGIC ────────────────────────────────────────
+// ══════════════════════════════════════════════════════
+// GAME LOGIC
+// ══════════════════════════════════════════════════════
 async function flipCard(pos) {
   if (!gameState || gameState.status !== 'playing') return;
   if (gameState.turn !== myRole) return;
@@ -209,6 +440,7 @@ async function flipCard(pos) {
   const flipped = [...(gameState.flipped || [])];
   if (flipped.length >= 2) return;
 
+  playFlip();
   deck[pos] = { ...card, flipped: true };
   flipped.push(pos);
 
@@ -217,11 +449,11 @@ async function flipCard(pos) {
     return;
   }
 
-  // Two cards up — evaluate
   await update(gameRef(gameId), { deck, flipped, lastEvent: `${myName} is checking…` });
 
   setTimeout(async () => {
     const snap  = await get(gameRef(gameId));
+    if (!snap.exists()) return;
     const fresh = snap.val();
     const d     = [...fresh.deck];
     const sc    = { ...fresh.scores };
@@ -231,32 +463,39 @@ async function flipCard(pos) {
       d[pA] = { ...d[pA], matched: true, flipped: true };
       d[pB] = { ...d[pB], matched: true, flipped: true };
       sc[myRole] = (sc[myRole] || 0) + 1;
-      const done = d.filter(c => c.matched).length / 2 === SHADES.length;
+      const done = d.filter(c => c.matched).length / 2 === FAMILIES[fresh.family].shades.length;
+      playWellDone();
       await update(gameRef(gameId), {
         deck: d, flipped: [], scores: sc, turn: myRole,
         status: done ? 'finished' : 'playing',
-        lastEvent: `✨ ${myName} found a pair: ${d[pA].name}!`,
+        lastEvent: `✨ ${myName} found: ${d[pA].name}!`,
       });
+      if (done) setTimeout(playWin, 1000);
     } else {
       d[pA] = { ...d[pA], flipped: false };
       d[pB] = { ...d[pB], flipped: false };
-      const next = myRole === 'host' ? 'guest' : 'host';
+      const next     = myRole === 'host' ? 'guest' : 'host';
       const nextName = myRole === 'host' ? fresh.guest : fresh.host;
+      playNoMatch();
       await update(gameRef(gameId), {
         deck: d, flipped: [], turn: next,
-        lastEvent: `No match. ${nextName}'s turn!`,
+        lastEvent: `No match — ${nextName}'s turn!`,
       });
     }
-  }, 1200);
+  }, 1400);
 }
 
-// ─── RENDER ────────────────────────────────────────────
+// ══════════════════════════════════════════════════════
+// RENDER
+// ══════════════════════════════════════════════════════
 function render(state) {
   gameState = state;
 
   if (state.status === 'waiting') {
     showScreen('screen-waiting');
     document.getElementById('wait-code').textContent = gameId;
+    const fam = FAMILIES[state.family];
+    document.getElementById('wait-family').textContent = `${fam.emoji} ${fam.label} edition`;
     return;
   }
 
@@ -268,35 +507,33 @@ function render(state) {
   const oppScore = state.scores?.[oppRole] ?? 0;
   const myLabel  = myRole === 'host' ? state.host  : state.guest;
   const oppLabel = myRole === 'host' ? state.guest : state.host;
+  const fam      = FAMILIES[state.family];
 
-  document.getElementById('my-name-display').textContent  = myLabel;
-  document.getElementById('opp-name-display').textContent = oppLabel || '…';
-  document.getElementById('my-score').textContent         = myScore;
-  document.getElementById('opp-score').textContent        = oppScore;
+  document.getElementById('game-family-badge').textContent = `${fam.emoji} ${fam.label}`;
+  document.getElementById('my-name-display').textContent   = myLabel || 'You';
+  document.getElementById('opp-name-display').textContent  = oppLabel || '…';
+  document.getElementById('my-score').textContent          = myScore;
+  document.getElementById('opp-score').textContent         = oppScore;
 
   const banner = document.getElementById('turn-banner');
-  banner.textContent  = isMyTurn ? '🎴 Your turn — flip a card!' : `⏳ ${oppLabel}'s turn…`;
-  banner.className    = 'turn-banner ' + (isMyTurn ? 'my-turn' : 'opp-turn');
-
+  banner.textContent = isMyTurn ? '🎴 Your turn — flip a card!' : `⏳ ${oppLabel || 'Opponent'}'s turn…`;
+  banner.className   = 'turn-banner ' + (isMyTurn ? 'my-turn' : 'opp-turn');
   document.getElementById('last-event').textContent = state.lastEvent || '';
 
-  // Score highlight
   document.getElementById('my-player-box').classList.toggle('active-player', isMyTurn);
   document.getElementById('opp-player-box').classList.toggle('active-player', !isMyTurn);
 
-  // Deck
   const grid = document.getElementById('game-grid');
   grid.innerHTML = '';
   (state.deck || []).forEach((card, pos) => {
     const canFlip = isMyTurn && !card.matched && !card.flipped
                     && (state.flipped || []).length < 2;
     const el = document.createElement('div');
-    el.className = [
-      'card',
+    el.className = ['card',
       card.flipped || card.matched ? 'flipped' : '',
-      card.matched  ? 'matched'  : '',
-      !canFlip      ? 'locked'   : '',
-    ].join(' ');
+      card.matched ? 'matched' : '',
+      !canFlip    ? 'locked'  : '',
+    ].filter(Boolean).join(' ');
 
     el.innerHTML = `
       <div class="card-inner">
@@ -304,7 +541,7 @@ function render(state) {
           <div class="card-back-mark">C</div>
         </div>
         <div class="card-face card-front">
-          <div class="card-color-zone" style="background:${card.hex};">
+          <div class="card-color-zone" style="background:${card.hex}">
             <span class="card-hex">${card.hex}</span>
           </div>
           <div class="card-info-zone">
@@ -327,21 +564,22 @@ function render(state) {
         </div>
       </div>`;
 
-    if (canFlip) el.addEventListener('click', () => flipCard(pos));
+    if (canFlip) el.addEventListener('click', () => { ensureAudio(); flipCard(pos); });
     grid.appendChild(el);
   });
 
-  // Win
   if (state.status === 'finished') {
     setTimeout(() => {
-      const winner = myScore > oppScore ? 'You win! 🏆'
-                   : oppScore > myScore ? `${oppLabel} wins! 🏆`
+      const myS  = state.scores?.[myRole]  ?? 0;
+      const oppS = state.scores?.[oppRole] ?? 0;
+      const winner = myS > oppS ? 'You win! 🏆'
+                   : oppS > myS ? `${oppLabel} wins! 🏆`
                    : "It's a tie! 🤝";
       document.getElementById('win-title').textContent = winner;
-      document.getElementById('win-sub').textContent   =
-        `${myLabel} ${myScore} — ${oppScore} ${oppLabel}`;
+      document.getElementById('win-sub').textContent =
+        `${myLabel} ${myS} — ${oppS} ${oppLabel}`;
       document.getElementById('win-overlay').classList.add('show');
-    }, 700);
+    }, 800);
   }
 }
 
@@ -350,12 +588,15 @@ function showScreen(id) {
   document.getElementById(id).classList.add('active');
 }
 
-// ─── ACTIONS ───────────────────────────────────────────
+// ══════════════════════════════════════════════════════
+// ACTIONS
+// ══════════════════════════════════════════════════════
 async function goHost() {
   const name = document.getElementById('host-name').value.trim();
   if (!name) { shake('host-name'); return; }
+  if (!selectedFamily) { shakeEl(document.getElementById('family-picker')); return; }
   myName = name; myRole = 'host';
-  gameId = await createGame(name);
+  gameId = await createGame(name, selectedFamily);
   document.getElementById('wait-code').textContent = gameId;
   showScreen('screen-waiting');
   stopListen = listenGame(gameId, render);
@@ -383,7 +624,7 @@ function copyCode() {
 async function restartGame() {
   await set(gameRef(gameId), {
     ...gameState,
-    deck: buildDeck(),
+    deck: buildDeck(gameState.family),
     scores: { host: 0, guest: 0 },
     turn: 'host', flipped: [],
     status: 'playing',
@@ -394,13 +635,17 @@ async function restartGame() {
 
 function leaveGame() {
   if (stopListen) stopListen();
-  gameId = null; myRole = null; gameState = null;
+  gameId = null; myRole = null; gameState = null; selectedFamily = null;
   document.getElementById('win-overlay').classList.remove('show');
+  document.querySelectorAll('.family-card').forEach(c => c.classList.remove('selected'));
   showScreen('screen-lobby');
 }
 
 function shake(id) {
   const el = document.getElementById(id);
+  shakeEl(el);
+}
+function shakeEl(el) {
   el.classList.add('shake');
   setTimeout(() => el.classList.remove('shake'), 500);
 }
@@ -408,13 +653,33 @@ function showError(msg) {
   const el = document.getElementById('join-error');
   el.textContent = msg;
   el.style.display = 'block';
-  setTimeout(() => el.style.display = 'none', 3500);
+  setTimeout(() => el.style.display = 'none', 4000);
 }
 
-// ─── BIND BUTTONS (no onclick in HTML needed) ──────────
+// ══════════════════════════════════════════════════════
+// INIT — Build family picker & bind events
+// ══════════════════════════════════════════════════════
 document.addEventListener('DOMContentLoaded', () => {
-  document.getElementById('btn-host').addEventListener('click', goHost);
-  document.getElementById('btn-join').addEventListener('click', goJoin);
+  // Build family picker
+  const picker = document.getElementById('family-picker');
+  Object.entries(FAMILIES).forEach(([key, fam]) => {
+    const card = document.createElement('div');
+    card.className = 'family-card';
+    card.dataset.key = key;
+    card.innerHTML = `
+      <div class="family-swatch" style="background:${fam.accent}"></div>
+      <div class="family-label">${fam.emoji} ${fam.label}</div>`;
+    card.addEventListener('click', () => {
+      document.querySelectorAll('.family-card').forEach(c => c.classList.remove('selected'));
+      card.classList.add('selected');
+      selectedFamily = key;
+    });
+    picker.appendChild(card);
+  });
+
+  // Button bindings
+  document.getElementById('btn-host').addEventListener('click', () => { ensureAudio(); goHost(); });
+  document.getElementById('btn-join').addEventListener('click', () => { ensureAudio(); goJoin(); });
   document.getElementById('copy-btn').addEventListener('click', copyCode);
   document.getElementById('btn-leave-waiting').addEventListener('click', leaveGame);
   document.getElementById('btn-leave-game').addEventListener('click', leaveGame);
@@ -423,16 +688,18 @@ document.addEventListener('DOMContentLoaded', () => {
     leaveGame();
     document.getElementById('win-overlay').classList.remove('show');
   });
-  // Enter key support
-  ['host-name'].forEach(id =>
-    document.getElementById(id).addEventListener('keydown', e => { if (e.key === 'Enter') goHost(); }));
-  ['guest-name','join-code'].forEach(id =>
-    document.getElementById(id).addEventListener('keydown', e => { if (e.key === 'Enter') goJoin(); }));
+
+  // Enter key
+  document.getElementById('host-name').addEventListener('keydown',  e => { if (e.key === 'Enter') goHost(); });
+  document.getElementById('guest-name').addEventListener('keydown', e => { if (e.key === 'Enter') goJoin(); });
+  document.getElementById('join-code').addEventListener('keydown',  e => { if (e.key === 'Enter') goJoin(); });
 });
 </script>
 
 <style>
-/* ─── RESET & BASE ─── */
+/* ══════════════════════════════════════════════════════
+   BASE
+══════════════════════════════════════════════════════ */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 :root {
   --bg:      #f7f5ef;
@@ -441,112 +708,204 @@ document.addEventListener('DOMContentLoaded', () => {
   --border:  #e2ddd5;
   --white:   #ffffff;
   --radius:  14px;
-  --card-w:  148px;
-  --card-h:  240px;
+  --card-w:  136px;
+  --card-h:  220px;
 }
+html { -webkit-text-size-adjust: 100%; }
 body {
   background: var(--bg);
   color: var(--ink);
   font-family: 'DM Mono', monospace;
   min-height: 100vh;
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior: none;
 }
-
-/* ─── SCREENS ─── */
 .screen { display: none; }
 .screen.active { display: block; }
 
-/* ══════════════════════════════════════
-   LOBBY
-══════════════════════════════════════ */
+/* ══════════════════════════════════════════════════════
+   LOBBY — Kandinsky background
+══════════════════════════════════════════════════════ */
 #screen-lobby {
   min-height: 100vh;
   display: none;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
-  padding: 32px 20px;
-  gap: 44px;
+  padding: 32px 20px 48px;
+  gap: 32px;
+  position: relative;
+  overflow: hidden;
 }
 #screen-lobby.active { display: flex; }
 
-.lobby-hero { text-align: center; }
+/* Kandinsky Composition VII as CSS art background */
+#screen-lobby::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 120px 80px at 15% 20%, rgba(220,50,50,0.55) 0%, transparent 70%),
+    radial-gradient(ellipse 90px 110px at 80% 15%, rgba(30,100,200,0.5) 0%, transparent 65%),
+    radial-gradient(ellipse 70px 70px at 50% 50%, rgba(255,200,0,0.45) 0%, transparent 60%),
+    radial-gradient(ellipse 100px 60px at 25% 75%, rgba(0,150,100,0.4) 0%, transparent 65%),
+    radial-gradient(ellipse 80px 90px at 75% 70%, rgba(150,0,180,0.45) 0%, transparent 60%),
+    radial-gradient(ellipse 60px 60px at 90% 50%, rgba(255,120,0,0.4) 0%, transparent 60%),
+    radial-gradient(ellipse 50px 80px at 10% 55%, rgba(0,80,180,0.4) 0%, transparent 60%),
+    radial-gradient(ellipse 140px 100px at 60% 30%, rgba(200,50,50,0.3) 0%, transparent 60%),
+    radial-gradient(ellipse 90px 50px at 40% 85%, rgba(255,220,0,0.35) 0%, transparent 55%),
+    radial-gradient(ellipse 70px 120px at 85% 85%, rgba(20,120,60,0.4) 0%, transparent 60%),
+    radial-gradient(ellipse 200px 200px at 50% 50%, rgba(180,140,80,0.2) 0%, transparent 80%),
+    linear-gradient(135deg, #2c1a0e 0%, #1a2844 35%, #0e2233 55%, #1e0e08 80%, #2a1a0a 100%);
+  z-index: 0;
+  pointer-events: none;
+}
+/* Kandinsky geometric shapes overlay */
+#screen-lobby::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background:
+    /* Circles */
+    radial-gradient(circle 40px at 30% 40%, rgba(255,200,0,0.3) 0%, transparent 100%),
+    radial-gradient(circle 25px at 70% 60%, rgba(255,80,80,0.35) 0%, transparent 100%),
+    radial-gradient(circle 15px at 20% 70%, rgba(100,200,255,0.3) 0%, transparent 100%),
+    radial-gradient(circle 55px at 85% 30%, rgba(0,200,120,0.2) 0%, transparent 100%),
+    radial-gradient(circle 20px at 55% 80%, rgba(220,100,200,0.3) 0%, transparent 100%),
+    radial-gradient(circle 30px at 10% 30%, rgba(255,160,0,0.25) 0%, transparent 100%),
+    radial-gradient(circle 45px at 65% 15%, rgba(60,60,200,0.3) 0%, transparent 100%);
+  z-index: 0;
+  pointer-events: none;
+}
+.lobby-content {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 32px;
+  width: 100%;
+  max-width: 700px;
+}
+
+/* Lobby header */
+.lobby-hero {
+  text-align: center;
+  padding: 12px 0 4px;
+}
 .lobby-title {
   font-family: 'Playfair Display', serif;
-  font-size: clamp(2.4rem, 7vw, 3.6rem);
+  font-size: clamp(2.6rem, 10vw, 4rem);
   font-weight: 900;
   letter-spacing: -0.02em;
   line-height: 1;
-  color: var(--ink);
+  color: #fff;
+  text-shadow: 0 2px 20px rgba(0,0,0,0.6);
 }
 .lobby-title em { font-style: italic; font-weight: 400; }
 .lobby-tagline {
-  margin-top: 10px;
+  margin-top: 8px;
   font-size: 11px;
-  color: var(--muted);
-  letter-spacing: 0.14em;
+  color: rgba(255,255,255,0.6);
+  letter-spacing: 0.16em;
   text-transform: uppercase;
 }
 
-/* Colour strip preview */
+/* Colour strip */
 .colour-strip {
   display: flex;
-  height: 6px;
+  height: 5px;
   border-radius: 99px;
   overflow: hidden;
-  width: 280px;
-  margin: 18px auto 0;
+  width: 240px;
+  margin: 14px auto 0;
+  opacity: 0.8;
 }
 .colour-strip div { flex: 1; }
 
+/* Family picker */
+.family-section { width: 100%; }
+.family-title {
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.5);
+  margin-bottom: 12px;
+  text-align: center;
+}
+#family-picker {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 8px;
+}
+@media(max-width: 480px) {
+  #family-picker { grid-template-columns: repeat(5, 1fr); gap: 6px; }
+}
+.family-card {
+  border-radius: 10px;
+  overflow: hidden;
+  cursor: pointer;
+  border: 2px solid rgba(255,255,255,0.15);
+  transition: transform 0.18s, border-color 0.18s;
+  background: rgba(0,0,0,0.3);
+  backdrop-filter: blur(4px);
+}
+.family-card:hover  { transform: translateY(-2px); border-color: rgba(255,255,255,0.4); }
+.family-card.selected { border-color: #fff; box-shadow: 0 0 0 3px rgba(255,255,255,0.25); }
+.family-swatch { height: 28px; }
+.family-label {
+  padding: 4px 2px 5px;
+  font-size: 8.5px;
+  text-align: center;
+  color: rgba(255,255,255,0.8);
+  letter-spacing: 0.02em;
+  line-height: 1.2;
+}
+
+/* Lobby panels */
 .lobby-panels {
   display: flex;
-  gap: 20px;
+  gap: 16px;
   flex-wrap: wrap;
   justify-content: center;
   width: 100%;
-  max-width: 660px;
 }
 .panel {
   flex: 1;
   min-width: 260px;
-  background: var(--white);
-  border: 1px solid var(--border);
+  max-width: 320px;
+  background: rgba(255,255,255,0.92);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255,255,255,0.6);
   border-radius: var(--radius);
-  padding: 30px 26px;
+  padding: 24px 20px;
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 12px;
 }
 .panel-title {
   font-family: 'Playfair Display', serif;
-  font-size: 1.25rem;
+  font-size: 1.15rem;
   font-weight: 700;
   font-style: italic;
-  color: var(--ink);
 }
-.panel-desc {
-  font-size: 11px;
-  color: var(--muted);
-  line-height: 1.7;
-}
+.panel-desc { font-size: 11px; color: var(--muted); line-height: 1.7; }
+
 input[type=text] {
   width: 100%;
-  padding: 11px 14px;
+  padding: 12px 14px;
   border: 1.5px solid var(--border);
   border-radius: 8px;
   font-family: 'DM Mono', monospace;
-  font-size: 13px;
+  font-size: 14px;
   background: var(--bg);
   color: var(--ink);
   outline: none;
-  transition: border-color 0.2s, box-shadow 0.2s;
+  transition: border-color 0.2s;
+  -webkit-appearance: none;
 }
-input[type=text]:focus {
-  border-color: var(--ink);
-  box-shadow: 0 0 0 3px rgba(26,20,16,0.06);
-}
+input[type=text]:focus { border-color: var(--ink); }
 input[type=text].shake { animation: shake 0.4s ease; }
-#join-code { text-transform: uppercase; letter-spacing: 0.18em; }
+#join-code { text-transform: uppercase; letter-spacing: 0.16em; }
 #join-error {
   display: none;
   font-size: 11px;
@@ -556,27 +915,36 @@ input[type=text].shake { animation: shake 0.4s ease; }
   border-radius: 6px;
   border: 1px solid #f5c6c2;
 }
+
 .btn {
-  padding: 12px 24px;
+  padding: 13px 22px;
   border: 1.5px solid var(--ink);
   background: none;
   color: var(--ink);
   font-family: 'DM Mono', monospace;
-  font-size: 11px;
+  font-size: 12px;
   letter-spacing: 0.1em;
   text-transform: uppercase;
   cursor: pointer;
   border-radius: 8px;
   transition: all 0.18s;
   text-align: center;
+  -webkit-appearance: none;
+  touch-action: manipulation;
 }
-.btn:hover   { background: var(--ink); color: var(--bg); }
+.btn:hover, .btn:active { background: var(--ink); color: var(--bg); }
 .btn.filled  { background: var(--ink); color: var(--bg); }
-.btn.filled:hover { opacity: 0.82; }
+.btn.filled:hover, .btn.filled:active { opacity: 0.82; }
+.btn.ghost {
+  border-color: rgba(255,255,255,0.5);
+  color: rgba(255,255,255,0.8);
+  background: rgba(0,0,0,0.2);
+}
+.btn.ghost:hover { background: rgba(255,255,255,0.15); color: white; }
 
-/* ══════════════════════════════════════
+/* ══════════════════════════════════════════════════════
    WAITING
-══════════════════════════════════════ */
+══════════════════════════════════════════════════════ */
 #screen-waiting {
   min-height: 100vh;
   display: none;
@@ -584,58 +952,50 @@ input[type=text].shake { animation: shake 0.4s ease; }
   align-items: center;
   justify-content: center;
   text-align: center;
-  gap: 20px;
-  padding: 32px;
+  gap: 18px;
+  padding: 32px 24px;
+  background: var(--bg);
 }
 #screen-waiting.active { display: flex; }
 .wait-title {
   font-family: 'Playfair Display', serif;
-  font-size: 1.6rem;
+  font-size: 1.5rem;
   font-weight: 900;
   font-style: italic;
 }
-.wait-subtitle {
-  font-size: 11px;
-  color: var(--muted);
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-}
+.wait-subtitle { font-size: 11px; color: var(--muted); letter-spacing: 0.12em; text-transform: uppercase; }
+#wait-family { font-size: 13px; color: var(--muted); letter-spacing: 0.06em; }
 .code-box {
   background: var(--ink);
   color: var(--bg);
   font-family: 'Playfair Display', serif;
-  font-size: 3.2rem;
+  font-size: clamp(2.2rem, 10vw, 3.4rem);
   font-weight: 900;
   letter-spacing: 0.22em;
-  padding: 22px 48px;
+  padding: 20px 36px;
   border-radius: var(--radius);
 }
 .pulse-dot {
   display: inline-block;
-  width: 9px; height: 9px;
+  width: 8px; height: 8px;
   background: #4ade80;
   border-radius: 50%;
   margin-right: 8px;
   animation: pulse 1.5s ease infinite;
 }
-@keyframes pulse {
-  0%,100% { opacity:1; transform:scale(1); }
-  50%      { opacity:0.35; transform:scale(0.65); }
-}
+@keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.3;transform:scale(0.6)} }
 
-/* ══════════════════════════════════════
+/* ══════════════════════════════════════════════════════
    GAME SCREEN
-══════════════════════════════════════ */
-#screen-game { padding-bottom: 48px; }
-
+══════════════════════════════════════════════════════ */
+#screen-game { padding-bottom: 32px; }
 .game-header {
-  padding: 16px 28px;
+  padding: 12px 16px;
   border-bottom: 1px solid var(--border);
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
-  flex-wrap: wrap;
+  gap: 10px;
   background: var(--white);
   position: sticky;
   top: 0;
@@ -643,115 +1003,102 @@ input[type=text].shake { animation: shake 0.4s ease; }
 }
 .game-logo {
   font-family: 'Playfair Display', serif;
-  font-size: 1.25rem;
+  font-size: 1.1rem;
   font-weight: 900;
+  flex-shrink: 0;
 }
 .game-logo em { font-style: italic; font-weight: 400; }
-
-.scoreboard {
-  display: flex;
-  gap: 6px;
-  align-items: stretch;
+#game-family-badge {
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  text-transform: uppercase;
+  flex-shrink: 0;
 }
+.scoreboard { display: flex; gap: 5px; align-items: stretch; }
 .player-box {
-  padding: 8px 18px;
-  border-radius: 10px;
+  padding: 6px 12px;
+  border-radius: 8px;
   text-align: center;
   border: 1.5px solid var(--border);
   background: var(--bg);
   transition: all 0.25s;
-  min-width: 80px;
+  min-width: 64px;
 }
-.player-box.active-player {
-  border-color: var(--ink);
-  background: var(--ink);
-  color: var(--bg);
-}
+.player-box.active-player { border-color: var(--ink); background: var(--ink); color: var(--bg); }
 .player-box .p-name {
-  font-size: 10px;
-  letter-spacing: 0.08em;
+  font-size: 9px;
+  letter-spacing: 0.07em;
   text-transform: uppercase;
   color: var(--muted);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 90px;
+  max-width: 70px;
 }
 .player-box.active-player .p-name { color: rgba(247,245,239,0.6); }
 .player-box .p-score {
   font-family: 'Playfair Display', serif;
-  font-size: 1.9rem;
+  font-size: 1.7rem;
   font-weight: 700;
   line-height: 1;
   margin-top: 2px;
 }
-.score-sep {
-  font-family: 'Playfair Display', serif;
-  font-size: 1.4rem;
-  color: var(--border);
-  display: flex;
-  align-items: center;
-}
+.score-sep { font-family:'Playfair Display',serif; font-size:1.2rem; color:var(--border); display:flex; align-items:center; }
 
-/* Turn banner */
 .turn-banner {
-  margin: 18px 28px 0;
-  padding: 13px 20px;
-  border-radius: 10px;
-  font-size: 12px;
+  margin: 14px 16px 0;
+  padding: 11px 16px;
+  border-radius: 8px;
+  font-size: 11px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   text-align: center;
   transition: all 0.3s;
 }
 .turn-banner.my-turn  { background: var(--ink); color: var(--bg); }
-.turn-banner.opp-turn {
-  background: #f0ece4;
-  color: var(--muted);
-  border: 1px dashed var(--border);
-}
+.turn-banner.opp-turn { background: #f0ece4; color: var(--muted); border: 1px dashed var(--border); }
 .last-event {
   text-align: center;
-  font-size: 11px;
+  font-size: 10px;
   color: var(--muted);
-  letter-spacing: 0.05em;
-  min-height: 16px;
-  padding: 7px 28px 0;
+  min-height: 14px;
+  padding: 5px 16px 0;
   font-style: italic;
 }
 
-/* Game grid */
-.game-area { padding: 22px 24px; }
+.game-area { padding: 16px 12px; }
 .grid {
   display: grid;
   grid-template-columns: repeat(5, var(--card-w));
-  gap: 12px;
+  gap: 10px;
   justify-content: center;
 }
-@media(max-width:820px) {
-  :root { --card-w: 118px; --card-h: 200px; }
+@media(max-width: 740px) {
+  :root { --card-w: 104px; --card-h: 176px; }
   .grid { grid-template-columns: repeat(4, var(--card-w)); }
 }
-@media(max-width:560px) {
-  :root { --card-w: 96px; --card-h: 170px; }
-  .grid { grid-template-columns: repeat(4, var(--card-w)); }
+@media(max-width: 480px) {
+  :root { --card-w: 80px; --card-h: 148px; }
+  .grid { grid-template-columns: repeat(4, var(--card-w)); gap: 7px; }
 }
 
-/* ══════════════════════════════════════
+/* ══════════════════════════════════════════════════════
    CARD
-══════════════════════════════════════ */
+══════════════════════════════════════════════════════ */
 .card {
   width: var(--card-w);
   height: var(--card-h);
   cursor: pointer;
   perspective: 900px;
+  touch-action: manipulation;
 }
 .card.locked { cursor: default; }
 .card-inner {
   width: 100%; height: 100%;
   position: relative;
   transform-style: preserve-3d;
-  transition: transform 0.52s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
   border-radius: var(--radius);
 }
 .card.flipped .card-inner,
@@ -761,6 +1108,7 @@ input[type=text].shake { animation: shake 0.4s ease; }
   position: absolute; inset: 0;
   border-radius: var(--radius);
   backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
   overflow: hidden;
 }
 
@@ -773,15 +1121,15 @@ input[type=text].shake { animation: shake 0.4s ease; }
 }
 .card-back::before {
   content: '';
-  position: absolute; inset: 10px;
+  position: absolute; inset: 8px;
   border: 1px solid rgba(255,255,255,0.1);
-  border-radius: 8px;
+  border-radius: 7px;
 }
 .card-back-mark {
   font-family: 'Playfair Display', serif;
   font-style: italic;
-  font-size: 2.6rem;
-  color: rgba(255,255,255,0.08);
+  font-size: 2.2rem;
+  color: rgba(255,255,255,0.07);
   user-select: none;
 }
 
@@ -793,64 +1141,55 @@ input[type=text].shake { animation: shake 0.4s ease; }
   background: var(--white);
   border: 1px solid var(--border);
 }
-
-/* Color zone — min 20% of card height */
 .card-color-zone {
   flex-shrink: 0;
-  height: 25%;          /* 25% > 20% minimum */
-  min-height: 44px;
+  height: 25%;
+  min-height: 40px;
   position: relative;
   display: flex;
   align-items: flex-end;
-  padding: 0 8px 5px;
+  padding: 0 7px 4px;
 }
 .card-hex {
   font-family: 'DM Mono', monospace;
-  font-size: 7.5px;
+  font-size: 7px;
   color: rgba(255,255,255,0.38);
-  letter-spacing: 0.06em;
+  letter-spacing: 0.04em;
   user-select: none;
 }
-
-/* Info zone */
 .card-info-zone {
   flex: 1;
   min-height: 0;
-  padding: 8px 9px 9px;
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-  overflow: hidden;
-}
-.card-shade-name {
-  font-family: 'Playfair Display', serif;
-  font-size: 13px;
-  font-weight: 900;
-  color: var(--ink);
-  line-height: 1.1;
-  flex-shrink: 0;
-  padding-bottom: 5px;
-  border-bottom: 1px solid #f0ece4;
-}
-.card-tags {
+  padding: 7px 8px 8px;
   display: flex;
   flex-direction: column;
   gap: 4px;
   overflow: hidden;
 }
+.card-shade-name {
+  font-family: 'Playfair Display', serif;
+  font-size: 11px;
+  font-weight: 900;
+  color: var(--ink);
+  line-height: 1.1;
+  flex-shrink: 0;
+  padding-bottom: 4px;
+  border-bottom: 1px solid #f0ece4;
+}
+.card-tags { display: flex; flex-direction: column; gap: 3px; overflow: hidden; }
 .card-tag {
   display: flex;
-  gap: 5px;
+  gap: 4px;
   align-items: flex-start;
-  font-size: 7px;
-  line-height: 1.45;
+  font-size: 6.5px;
+  line-height: 1.4;
   color: #555;
   overflow: hidden;
 }
 .tag-pill {
-  width: 15px; height: 15px;
-  border-radius: 4px;
-  font-size: 8px;
+  width: 13px; height: 13px;
+  border-radius: 3px;
+  font-size: 7px;
   display: flex; align-items: center; justify-content: center;
   flex-shrink: 0;
 }
@@ -863,36 +1202,27 @@ input[type=text].shake { animation: shake 0.4s ease; }
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
-
-/* Matched — fade out */
-.card.matched .card-front {
-  opacity: 0.32;
-  filter: grayscale(0.5) brightness(1.05);
+.card.matched .card-front { opacity: 0.3; filter: grayscale(0.5); }
+.card:not(.locked):not(.flipped):not(.matched):active .card-inner {
+  transform: scale(0.96);
 }
 
-/* Hover lift (only when clickable) */
-.card:not(.locked):not(.flipped):not(.matched):hover .card-inner {
-  transform: translateY(-4px) scale(1.02);
-  filter: drop-shadow(0 10px 28px rgba(0,0,0,0.14));
-}
-
-/* ══════════════════════════════════════
+/* ══════════════════════════════════════════════════════
    WIN OVERLAY
-══════════════════════════════════════ */
+══════════════════════════════════════════════════════ */
 .win-overlay {
   display: none;
   position: fixed; inset: 0;
-  background: rgba(247, 245, 239, 0.96);
+  background: rgba(247,245,239,0.96);
   z-index: 200;
   flex-direction: column;
   align-items: center; justify-content: center;
   gap: 16px; text-align: center; padding: 32px;
 }
 .win-overlay.show { display: flex; }
-.win-star { font-size: 56px; }
 .win-title {
   font-family: 'Playfair Display', serif;
-  font-size: clamp(2.4rem, 8vw, 4.8rem);
+  font-size: clamp(2.2rem, 8vw, 4.5rem);
   font-style: italic;
   font-weight: 900;
   line-height: 1;
@@ -900,11 +1230,15 @@ input[type=text].shake { animation: shake 0.4s ease; }
 .win-sub { font-size: 13px; color: var(--muted); letter-spacing: 0.08em; }
 .win-actions { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; margin-top: 8px; }
 
-/* ─── MISC ANIMATIONS ─── */
+/* Animations */
 @keyframes shake {
-  0%,100% { transform: translateX(0); }
-  20%,60% { transform: translateX(-6px); }
-  40%,80% { transform: translateX(6px); }
+  0%,100%{transform:translateX(0)} 20%,60%{transform:translateX(-6px)} 40%,80%{transform:translateX(6px)}
+}
+
+/* iOS safe area */
+@supports(padding: max(0px)) {
+  .game-header { padding-top: max(12px, env(safe-area-inset-top)); }
+  body { padding-bottom: env(safe-area-inset-bottom); }
 }
 </style>
 </head>
@@ -912,38 +1246,39 @@ input[type=text].shake { animation: shake 0.4s ease; }
 
 <!-- ══ LOBBY ══ -->
 <div id="screen-lobby" class="screen active">
-  <div class="lobby-hero">
-    <div class="lobby-title">Colour<em>Flip</em></div>
-    <div class="lobby-tagline">2-player memory · 20 shades of blue</div>
-    <div class="colour-strip">
-      <div style="background:#003153"></div>
-      <div style="background:#1B6FA8"></div>
-      <div style="background:#2A8FBF"></div>
-      <div style="background:#4B0082"></div>
-      <div style="background:#576D8E"></div>
-      <div style="background:#5B3F93"></div>
-      <div style="background:#6A8EAE"></div>
-      <div style="background:#7BA7BC"></div>
-      <div style="background:#8FAADC"></div>
-      <div style="background:#7B68B5"></div>
-    </div>
-  </div>
-
-  <div class="lobby-panels">
-    <div class="panel">
-      <div class="panel-title">Create a game</div>
-      <div class="panel-desc">Start a new game and share the 6-letter code with your friend.</div>
-      <input type="text" id="host-name" placeholder="Your name" maxlength="16" autocomplete="off">
-      <button class="btn filled" id="btn-host">▶ Create &amp; host</button>
+  <div class="lobby-content">
+    <div class="lobby-hero">
+      <div class="lobby-title">Colour<em>Flip</em></div>
+      <div class="lobby-tagline">2-player colour memory · 10 families · 20 pairs each</div>
+      <div class="colour-strip">
+        <div style="background:#003153"></div><div style="background:#E34234"></div>
+        <div style="background:#FFB3C6"></div><div style="background:#E07B39"></div>
+        <div style="background:#2E8B57"></div><div style="background:#D4A017"></div>
+        <div style="background:#7F52A3"></div><div style="background:#7B4F2E"></div>
+        <div style="background:#718096"></div><div style="background:#8A7A6A"></div>
+      </div>
     </div>
 
-    <div class="panel">
-      <div class="panel-title">Join a game</div>
-      <div class="panel-desc">Enter your name and the code your friend shared with you.</div>
-      <input type="text" id="guest-name" placeholder="Your name" maxlength="16" autocomplete="off">
-      <input type="text" id="join-code" placeholder="Game code — e.g. AB3X7K" maxlength="6" autocomplete="off">
-      <div id="join-error"></div>
-      <button class="btn filled" id="btn-join">→ Join game</button>
+    <div class="family-section">
+      <div class="family-title">— Choose a colour family to play —</div>
+      <div id="family-picker"></div>
+    </div>
+
+    <div class="lobby-panels">
+      <div class="panel">
+        <div class="panel-title">Create a game</div>
+        <div class="panel-desc">Pick a colour family above, enter your name, and share the code.</div>
+        <input type="text" id="host-name" placeholder="Your name" maxlength="16" autocomplete="off">
+        <button class="btn filled" id="btn-host">▶ Create &amp; host</button>
+      </div>
+      <div class="panel">
+        <div class="panel-title">Join a game</div>
+        <div class="panel-desc">Enter your name and the 6-letter code your friend shared.</div>
+        <input type="text" id="guest-name" placeholder="Your name" maxlength="16" autocomplete="off">
+        <input type="text" id="join-code" placeholder="Game code — e.g. AB3X7K" maxlength="6" autocomplete="off">
+        <div id="join-error"></div>
+        <button class="btn filled" id="btn-join">→ Join game</button>
+      </div>
     </div>
   </div>
 </div>
@@ -951,20 +1286,21 @@ input[type=text].shake { animation: shake 0.4s ease; }
 <!-- ══ WAITING ══ -->
 <div id="screen-waiting" class="screen">
   <div class="wait-title">Waiting for your opponent…</div>
-  <div class="wait-subtitle">Share this code with your friend</div>
+  <div class="wait-subtitle">Share this code</div>
   <div class="code-box" id="wait-code">——</div>
+  <div id="wait-family"></div>
   <button class="btn" id="copy-btn">Copy code</button>
-  <div style="font-size:11px; color:var(--muted);">
-    <span class="pulse-dot"></span>Waiting for Player 2 to join…
+  <div style="font-size:11px; color:var(--muted); margin-top:4px;">
+    <span class="pulse-dot"></span>Waiting for Player 2…
   </div>
-  <button class="btn" id="btn-leave-waiting" style="margin-top:12px; font-size:10px;">← Back to menu</button>
+  <button class="btn" id="btn-leave-waiting" style="margin-top:16px; font-size:10px; opacity:0.6;">← Back</button>
 </div>
 
 <!-- ══ GAME ══ -->
 <div id="screen-game" class="screen">
   <div class="game-header">
     <div class="game-logo">Colour<em>Flip</em></div>
-
+    <span id="game-family-badge"></span>
     <div class="scoreboard">
       <div class="player-box" id="my-player-box">
         <div class="p-name" id="my-name-display">You</div>
@@ -972,17 +1308,14 @@ input[type=text].shake { animation: shake 0.4s ease; }
       </div>
       <div class="score-sep">—</div>
       <div class="player-box" id="opp-player-box">
-        <div class="p-name" id="opp-name-display">Opponent</div>
+        <div class="p-name" id="opp-name-display">Opp.</div>
         <div class="p-score" id="opp-score">0</div>
       </div>
     </div>
-
-    <button class="btn" id="btn-leave-game">✕ Leave</button>
+    <button class="btn" id="btn-leave-game" style="font-size:10px; padding:8px 12px;">✕</button>
   </div>
-
   <div class="turn-banner my-turn" id="turn-banner">Your turn!</div>
   <div class="last-event" id="last-event"></div>
-
   <div class="game-area">
     <div class="grid" id="game-grid"></div>
   </div>
@@ -990,7 +1323,7 @@ input[type=text].shake { animation: shake 0.4s ease; }
 
 <!-- ══ WIN ══ -->
 <div class="win-overlay" id="win-overlay">
-  <div class="win-star">✦</div>
+  <div style="font-size:52px;">✦</div>
   <div class="win-title" id="win-title">Game over!</div>
   <div class="win-sub" id="win-sub"></div>
   <div class="win-actions">
