@@ -1,0 +1,1003 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ColourFlip — Multiplayer</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;0,900;1,400;1,700&family=DM+Mono:ital,wght@0,300;0,400;1,300&display=swap" rel="stylesheet">
+
+<script type="module">
+import { initializeApp }                            from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+import { getDatabase, ref, set, get, onValue, update } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+
+const firebaseConfig = {
+  apiKey:            "AIzaSyBlH5psSUGVJH5M1Q_zFzYbveX8OswXlK0",
+  authDomain:        "colourflip-3dd44.firebaseapp.com",
+  databaseURL:       "https://colourflip-3dd44-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId:         "colourflip-3dd44",
+  storageBucket:     "colourflip-3dd44.firebasestorage.app",
+  messagingSenderId: "847065587601",
+  appId:             "1:847065587601:web:ca0feb0b7ab881da834430"
+};
+
+const app = initializeApp(firebaseConfig);
+const db  = getDatabase(app);
+
+// ─── 20 BLUE SHADES ────────────────────────────────────
+const SHADES = [
+  {
+    name: "Prussian Blue", hex: "#003153",
+    origin:  "Discovered accidentally in Berlin, 1704 — chemist Diesbach mixed contaminated iron salts with potash, producing the world's first synthetic pigment.",
+    nature:  "Absent — fully synthetic, no natural mineral equivalent exists anywhere on Earth.",
+    culture: "Hokusai's The Great Wave, Prussian military uniforms, early architectural blueprints."
+  },
+  {
+    name: "Azurite", hex: "#1B6FA8",
+    origin:  "From Arabic lazaward via Latin azurrum — a vivid blue copper carbonate mineral known since Antiquity and prized by Renaissance painters.",
+    nature:  "Rare — found in oxidised copper ore deposits worldwide. Unstable in humidity, it slowly darkens to green over centuries.",
+    culture: "Renaissance frescoes, Egyptian jewellery, medieval manuscript illumination, the robes of the Virgin Mary."
+  },
+  {
+    name: "Cerulean", hex: "#2A8FBF",
+    origin:  "From Latin caelum meaning sky. Officially named the 'cloudless sky colour' by 18th-century academic painters seeking a standardised sky tone.",
+    nature:  "Common — the daytime sky, deep ocean shallows, the back of a blue jay, morning glories.",
+    culture: "Symbol of calm and clarity. The Pantone Colour of the Year in 2000. Widely used in corporate identity."
+  },
+  {
+    name: "Periwinkle", hex: "#8FAADC",
+    origin:  "From Vinca minor, a low-growing plant of European forest floors. Its delicate pale blue petals gave the colour its name in the 18th century.",
+    nature:  "Common — woodland floors across Europe and West Asia in spring; also visible in some butterfly wing patterns.",
+    culture: "Victorian symbol of friendship and fidelity. Dominant colour in Y2K digital aesthetics and early internet design."
+  },
+  {
+    name: "Woad", hex: "#576D8E",
+    origin:  "Old English wad — from Isatis tinctoria, a flowering plant cultivated across Europe for millennia solely to extract its blue dye from crushed leaves.",
+    nature:  "Cultivated — produces small yellow flowers. The blue comes from fermenting the leaves. Now found wild in rocky terrain.",
+    culture: "Gauls and Picts painted their skin with it before battle. Banned in Germany in 1654 when cheaper indigo arrived from India."
+  },
+  {
+    name: "Smalt", hex: "#003A6C",
+    origin:  "From Italian smalto (enamel). A deep blue pigment made by fusing cobalt ore with ground glass, then pulverising the result into a fine powder.",
+    nature:  "Absent — entirely manufactured, though cobalt itself is mined from the Earth's crust in Congo and Australia.",
+    culture: "Dominant blue in European oil painting from 1500–1700. Used by Vermeer, Rubens, and Rembrandt."
+  },
+  {
+    name: "Indigo", hex: "#4B0082",
+    origin:  "From Greek indikon meaning 'from India'. Traded along the Silk Road for millennia; so expensive it was sometimes used as currency.",
+    nature:  "Cultivated — extracted from Indigofera tinctoria leaves. Also found in woad and in some sea snails (murex).",
+    culture: "One of the seven colours of Newton's rainbow. Denim jeans worldwide. Sacred in Hindu and Buddhist traditions."
+  },
+  {
+    name: "Lapis", hex: "#26619C",
+    origin:  "Short for lapis-lazuli — from Latin lapis (stone) and Arabic lazaward (blue). Mined in the Sar-e-Sang valley of Afghanistan for over 6,000 years.",
+    nature:  "Very rare — only a few mines exist worldwide. The blue is caused by the mineral lazurite within a matrix of white calcite.",
+    culture: "More expensive than gold in the Middle Ages. Reserved for the Virgin Mary's mantle in religious paintings."
+  },
+  {
+    name: "Majorelle", hex: "#5B3F93",
+    origin:  "Named after French painter Jacques Majorelle, who obsessively painted his Marrakech garden villa in this intense cobalt-violet hue in 1937.",
+    nature:  "Absent — invented as an architectural colour. No direct natural equivalent, though some morpho butterfly wings come close.",
+    culture: "Yves Saint Laurent bought the garden in 1980, cementing the colour in fashion history. A symbol of Morocco."
+  },
+  {
+    name: "Zaffre", hex: "#0014A8",
+    origin:  "From Arabic safra meaning yellow — an ironic name. Zaffre is crude cobalt oxide, used since the 16th century to create brilliant blue glass and ceramics.",
+    nature:  "Absent — processed from cobalt ore. The raw mineral smaltite from which it is made has a silver-grey appearance.",
+    culture: "Used in Delftware, Chinese blue-and-white porcelain, and stained glass windows across medieval Europe."
+  },
+  {
+    name: "Bice", hex: "#4F84C4",
+    origin:  "Medieval pigment made by grinding azurite to a fine powder. Less pure and less saturated than ultramarine, it was the affordable alternative for artists.",
+    nature:  "Rare — same copper ore origin as azurite. The coarser the grind, the paler the hue — a unique optical property.",
+    culture: "Widely used in Gothic manuscript illumination and panel painting. Largely replaced by Prussian blue after 1704."
+  },
+  {
+    name: "Nattier Blue", hex: "#6A8EAE",
+    origin:  "Named after Jean-Marc Nattier (1685–1766), official portraitist of Louis XV's court, who systematically dressed his female subjects in this soft grey-blue.",
+    nature:  "Rare in nature — approaches the colour of a cloudy winter sky or the plumage of a grey heron.",
+    culture: "Emblem of 18th-century French aristocratic femininity. Often paired with silver and gold in Rococo interiors."
+  },
+  {
+    name: "Sèvres Blue", hex: "#6082B6",
+    origin:  "Developed at the Royal Manufactory of Sèvres under Louis XV around 1749. The exact formula was a state secret, protected by royal patent from 1756.",
+    nature:  "Absent — a manufactured enamel glaze colour, though it evokes the pale winter sky of the Île-de-France.",
+    culture: "Synonymous with French luxury porcelain. Appears in royal services gifted to foreign heads of state across Europe."
+  },
+  {
+    name: "Pavonine", hex: "#4E82B4",
+    origin:  "From Latin pavo meaning peacock. Describes the iridescent blue-green sheen of the neck feathers of a male peacock, which shifts with the angle of light.",
+    nature:  "Present — peacock neck feathers, kingfisher plumage, some tropical fish scales and morpho butterfly wings.",
+    culture: "Symbol of immortality and watchfulness in Christianity. Pride and vanity in western allegory. Royalty in India."
+  },
+  {
+    name: "Turchino", hex: "#2E86AB",
+    origin:  "Old Italian word for turquoise-blue. Derived from the Persian turquoise stone, which reached Europe via Ottoman Turkey, hence 'pierre turquoise' (Turkish stone).",
+    nature:  "Present — turquoise mineral deposits in Iran, Tibet, and the American Southwest. Also in shallow tropical lagoons.",
+    culture: "Sacred to the Aztecs and Navajo. A protective stone in Persian and Turkish culture. Trendy in Renaissance Venetian painting."
+  },
+  {
+    name: "Pewter Blue", hex: "#627D98",
+    origin:  "Named after oxidised pewter, the tin-lead alloy used for tableware since Roman times. The blue-grey oxide that forms on its surface inspired the colour name.",
+    nature:  "Present — overcast winter skies, slate rooftops, grey whale skin, aged driftwood near the sea.",
+    culture: "Prized in Scandinavian design and Nordic faience. Associated with restraint and durability in French bourgeois interiors."
+  },
+  {
+    name: "Camaïeu", hex: "#5B8DB8",
+    origin:  "From the French painting technique camaïeu — painting an entire scene using gradations of a single colour only. Word origin is obscure, possibly from chamahieu.",
+    nature:  "Present — a fair-weather sky in late afternoon, calm open ocean at distance, glacier meltwater lakes.",
+    culture: "Refined technique in French 18th-century decorative arts. Revived in Art Deco and modernist graphic design."
+  },
+  {
+    name: "Steel Blue", hex: "#4682B4",
+    origin:  "Named after polished steel, whose cold blue-grey mirror surface was standardised as a colour reference in early 20th-century industrial design manuals.",
+    nature:  "Present — glacial meltwater, blue steel kingfisher backs, cold deep-sea water far from the coast.",
+    culture: "Popularised in 1930s automotive and aviation design. A staple of corporate and tech visual identity today."
+  },
+  {
+    name: "Watchet", hex: "#7BA7BC",
+    origin:  "An Old English word of uncertain origin, possibly from the Welsh gwachet. One of the oldest recorded colour names in the English language, mentioned by Chaucer.",
+    nature:  "Present — pale winter skies at noon, shallow coastal water over white sand, faded blue linen.",
+    culture: "Used in medieval English heraldry. Appears in Shakespeare's Henry IV. Revived by Arts & Crafts movement dyers."
+  },
+  {
+    name: "Wisteria", hex: "#7B68B5",
+    origin:  "Named after the Wisteria genus of flowering vines, itself honouring American anatomist Caspar Wistar (1761–1818). The lavender-blue of its hanging flower clusters.",
+    nature:  "Present — wisteria flowers across East Asia and North America in spring. Also in some lavender varieties and iris petals.",
+    culture: "Symbol of longevity and poetry in Chinese and Japanese culture. Associated with nostalgia and transience in literature."
+  },
+];
+
+// ─── STATE ─────────────────────────────────────────────
+let gameId    = null;
+let myRole    = null;
+let myName    = '';
+let gameState = null;
+let stopListen = null;
+
+// ─── UTILS ─────────────────────────────────────────────
+function shuffle(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+function buildDeck() {
+  return shuffle(
+    SHADES.flatMap((s, i) => [
+      { id: i, name: s.name, hex: s.hex, origin: s.origin, nature: s.nature, culture: s.culture },
+      { id: i, name: s.name, hex: s.hex, origin: s.origin, nature: s.nature, culture: s.culture },
+    ])
+  ).map((c, pos) => ({ ...c, pos, flipped: false, matched: false }));
+}
+function genId() {
+  return Math.random().toString(36).slice(2, 8).toUpperCase();
+}
+function gameRef(id) { return ref(db, `games/${id}`); }
+
+// ─── FIREBASE ──────────────────────────────────────────
+async function createGame(hostName) {
+  const id = genId();
+  await set(gameRef(id), {
+    id, host: hostName, guest: null,
+    scores: { host: 0, guest: 0 },
+    turn: 'host', flipped: [], deck: buildDeck(),
+    status: 'waiting', lastEvent: null,
+  });
+  return id;
+}
+async function joinGame(id, guestName) {
+  const snap = await get(gameRef(id));
+  if (!snap.exists()) throw new Error('Game not found — check the code.');
+  const s = snap.val();
+  if (s.guest)           throw new Error('This game is already full.');
+  if (s.status !== 'waiting') throw new Error('Game already started.');
+  await update(gameRef(id), { guest: guestName, status: 'playing' });
+}
+function listenGame(id, cb) {
+  return onValue(ref(db, `games/${id}`), snap => { if (snap.exists()) cb(snap.val()); });
+}
+
+// ─── GAME LOGIC ────────────────────────────────────────
+async function flipCard(pos) {
+  if (!gameState || gameState.status !== 'playing') return;
+  if (gameState.turn !== myRole) return;
+  const deck    = [...gameState.deck];
+  const card    = deck[pos];
+  if (card.matched || card.flipped) return;
+  const flipped = [...(gameState.flipped || [])];
+  if (flipped.length >= 2) return;
+
+  deck[pos] = { ...card, flipped: true };
+  flipped.push(pos);
+
+  if (flipped.length === 1) {
+    await update(gameRef(gameId), { deck, flipped, lastEvent: `${myName} flipped a card…` });
+    return;
+  }
+
+  // Two cards up — evaluate
+  await update(gameRef(gameId), { deck, flipped, lastEvent: `${myName} is checking…` });
+
+  setTimeout(async () => {
+    const snap  = await get(gameRef(gameId));
+    const fresh = snap.val();
+    const d     = [...fresh.deck];
+    const sc    = { ...fresh.scores };
+    const [pA, pB] = flipped;
+
+    if (d[pA].id === d[pB].id) {
+      d[pA] = { ...d[pA], matched: true, flipped: true };
+      d[pB] = { ...d[pB], matched: true, flipped: true };
+      sc[myRole] = (sc[myRole] || 0) + 1;
+      const done = d.filter(c => c.matched).length / 2 === SHADES.length;
+      await update(gameRef(gameId), {
+        deck: d, flipped: [], scores: sc, turn: myRole,
+        status: done ? 'finished' : 'playing',
+        lastEvent: `✨ ${myName} found a pair: ${d[pA].name}!`,
+      });
+    } else {
+      d[pA] = { ...d[pA], flipped: false };
+      d[pB] = { ...d[pB], flipped: false };
+      const next = myRole === 'host' ? 'guest' : 'host';
+      const nextName = myRole === 'host' ? fresh.guest : fresh.host;
+      await update(gameRef(gameId), {
+        deck: d, flipped: [], turn: next,
+        lastEvent: `No match. ${nextName}'s turn!`,
+      });
+    }
+  }, 1200);
+}
+
+// ─── RENDER ────────────────────────────────────────────
+function render(state) {
+  gameState = state;
+
+  if (state.status === 'waiting') {
+    showScreen('screen-waiting');
+    document.getElementById('wait-code').textContent = gameId;
+    return;
+  }
+
+  showScreen('screen-game');
+
+  const isMyTurn = state.turn === myRole;
+  const oppRole  = myRole === 'host' ? 'guest' : 'host';
+  const myScore  = state.scores?.[myRole]  ?? 0;
+  const oppScore = state.scores?.[oppRole] ?? 0;
+  const myLabel  = myRole === 'host' ? state.host  : state.guest;
+  const oppLabel = myRole === 'host' ? state.guest : state.host;
+
+  document.getElementById('my-name-display').textContent  = myLabel;
+  document.getElementById('opp-name-display').textContent = oppLabel || '…';
+  document.getElementById('my-score').textContent         = myScore;
+  document.getElementById('opp-score').textContent        = oppScore;
+
+  const banner = document.getElementById('turn-banner');
+  banner.textContent  = isMyTurn ? '🎴 Your turn — flip a card!' : `⏳ ${oppLabel}'s turn…`;
+  banner.className    = 'turn-banner ' + (isMyTurn ? 'my-turn' : 'opp-turn');
+
+  document.getElementById('last-event').textContent = state.lastEvent || '';
+
+  // Score highlight
+  document.getElementById('my-player-box').classList.toggle('active-player', isMyTurn);
+  document.getElementById('opp-player-box').classList.toggle('active-player', !isMyTurn);
+
+  // Deck
+  const grid = document.getElementById('game-grid');
+  grid.innerHTML = '';
+  (state.deck || []).forEach((card, pos) => {
+    const canFlip = isMyTurn && !card.matched && !card.flipped
+                    && (state.flipped || []).length < 2;
+    const el = document.createElement('div');
+    el.className = [
+      'card',
+      card.flipped || card.matched ? 'flipped' : '',
+      card.matched  ? 'matched'  : '',
+      !canFlip      ? 'locked'   : '',
+    ].join(' ');
+
+    el.innerHTML = `
+      <div class="card-inner">
+        <div class="card-face card-back">
+          <div class="card-back-mark">C</div>
+        </div>
+        <div class="card-face card-front">
+          <div class="card-color-zone" style="background:${card.hex};">
+            <span class="card-hex">${card.hex}</span>
+          </div>
+          <div class="card-info-zone">
+            <div class="card-shade-name">${card.name}</div>
+            <div class="card-tags">
+              <div class="card-tag tag-origin">
+                <div class="tag-pill pill-origin">📖</div>
+                <span>${card.origin}</span>
+              </div>
+              <div class="card-tag tag-nature">
+                <div class="tag-pill pill-nature">🌿</div>
+                <span>${card.nature}</span>
+              </div>
+              <div class="card-tag tag-culture">
+                <div class="tag-pill pill-culture">🏛</div>
+                <span>${card.culture}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>`;
+
+    if (canFlip) el.addEventListener('click', () => flipCard(pos));
+    grid.appendChild(el);
+  });
+
+  // Win
+  if (state.status === 'finished') {
+    setTimeout(() => {
+      const winner = myScore > oppScore ? 'You win! 🏆'
+                   : oppScore > myScore ? `${oppLabel} wins! 🏆`
+                   : "It's a tie! 🤝";
+      document.getElementById('win-title').textContent = winner;
+      document.getElementById('win-sub').textContent   =
+        `${myLabel} ${myScore} — ${oppScore} ${oppLabel}`;
+      document.getElementById('win-overlay').classList.add('show');
+    }, 700);
+  }
+}
+
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+// ─── ACTIONS ───────────────────────────────────────────
+async function goHost() {
+  const name = document.getElementById('host-name').value.trim();
+  if (!name) { shake('host-name'); return; }
+  myName = name; myRole = 'host';
+  gameId = await createGame(name);
+  document.getElementById('wait-code').textContent = gameId;
+  showScreen('screen-waiting');
+  stopListen = listenGame(gameId, render);
+}
+
+async function goJoin() {
+  const name = document.getElementById('guest-name').value.trim();
+  const code = document.getElementById('join-code').value.trim().toUpperCase();
+  if (!name) { shake('guest-name'); return; }
+  if (!code) { shake('join-code');  return; }
+  try {
+    myName = name; myRole = 'guest'; gameId = code;
+    await joinGame(code, name);
+    stopListen = listenGame(gameId, render);
+  } catch(e) { showError(e.message); }
+}
+
+function copyCode() {
+  navigator.clipboard.writeText(gameId);
+  const btn = document.getElementById('copy-btn');
+  btn.textContent = '✓ Copied!';
+  setTimeout(() => btn.textContent = 'Copy code', 2000);
+}
+
+async function restartGame() {
+  await set(gameRef(gameId), {
+    ...gameState,
+    deck: buildDeck(),
+    scores: { host: 0, guest: 0 },
+    turn: 'host', flipped: [],
+    status: 'playing',
+    lastEvent: 'New game — good luck!',
+  });
+  document.getElementById('win-overlay').classList.remove('show');
+}
+
+function leaveGame() {
+  if (stopListen) stopListen();
+  gameId = null; myRole = null; gameState = null;
+  document.getElementById('win-overlay').classList.remove('show');
+  showScreen('screen-lobby');
+}
+
+function shake(id) {
+  const el = document.getElementById(id);
+  el.classList.add('shake');
+  setTimeout(() => el.classList.remove('shake'), 500);
+}
+function showError(msg) {
+  const el = document.getElementById('join-error');
+  el.textContent = msg;
+  el.style.display = 'block';
+  setTimeout(() => el.style.display = 'none', 3500);
+}
+
+// ─── BIND BUTTONS (no onclick in HTML needed) ──────────
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('btn-host').addEventListener('click', goHost);
+  document.getElementById('btn-join').addEventListener('click', goJoin);
+  document.getElementById('copy-btn').addEventListener('click', copyCode);
+  document.getElementById('btn-leave-waiting').addEventListener('click', leaveGame);
+  document.getElementById('btn-leave-game').addEventListener('click', leaveGame);
+  document.getElementById('btn-restart').addEventListener('click', restartGame);
+  document.getElementById('btn-menu').addEventListener('click', () => {
+    leaveGame();
+    document.getElementById('win-overlay').classList.remove('show');
+  });
+  // Enter key support
+  ['host-name'].forEach(id =>
+    document.getElementById(id).addEventListener('keydown', e => { if (e.key === 'Enter') goHost(); }));
+  ['guest-name','join-code'].forEach(id =>
+    document.getElementById(id).addEventListener('keydown', e => { if (e.key === 'Enter') goJoin(); }));
+});
+</script>
+
+<style>
+/* ─── RESET & BASE ─── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg:      #f7f5ef;
+  --ink:     #1a1410;
+  --muted:   #8a8070;
+  --border:  #e2ddd5;
+  --white:   #ffffff;
+  --radius:  14px;
+  --card-w:  148px;
+  --card-h:  240px;
+}
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: 'DM Mono', monospace;
+  min-height: 100vh;
+}
+
+/* ─── SCREENS ─── */
+.screen { display: none; }
+.screen.active { display: block; }
+
+/* ══════════════════════════════════════
+   LOBBY
+══════════════════════════════════════ */
+#screen-lobby {
+  min-height: 100vh;
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 32px 20px;
+  gap: 44px;
+}
+#screen-lobby.active { display: flex; }
+
+.lobby-hero { text-align: center; }
+.lobby-title {
+  font-family: 'Playfair Display', serif;
+  font-size: clamp(2.4rem, 7vw, 3.6rem);
+  font-weight: 900;
+  letter-spacing: -0.02em;
+  line-height: 1;
+  color: var(--ink);
+}
+.lobby-title em { font-style: italic; font-weight: 400; }
+.lobby-tagline {
+  margin-top: 10px;
+  font-size: 11px;
+  color: var(--muted);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+/* Colour strip preview */
+.colour-strip {
+  display: flex;
+  height: 6px;
+  border-radius: 99px;
+  overflow: hidden;
+  width: 280px;
+  margin: 18px auto 0;
+}
+.colour-strip div { flex: 1; }
+
+.lobby-panels {
+  display: flex;
+  gap: 20px;
+  flex-wrap: wrap;
+  justify-content: center;
+  width: 100%;
+  max-width: 660px;
+}
+.panel {
+  flex: 1;
+  min-width: 260px;
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 30px 26px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.panel-title {
+  font-family: 'Playfair Display', serif;
+  font-size: 1.25rem;
+  font-weight: 700;
+  font-style: italic;
+  color: var(--ink);
+}
+.panel-desc {
+  font-size: 11px;
+  color: var(--muted);
+  line-height: 1.7;
+}
+input[type=text] {
+  width: 100%;
+  padding: 11px 14px;
+  border: 1.5px solid var(--border);
+  border-radius: 8px;
+  font-family: 'DM Mono', monospace;
+  font-size: 13px;
+  background: var(--bg);
+  color: var(--ink);
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+input[type=text]:focus {
+  border-color: var(--ink);
+  box-shadow: 0 0 0 3px rgba(26,20,16,0.06);
+}
+input[type=text].shake { animation: shake 0.4s ease; }
+#join-code { text-transform: uppercase; letter-spacing: 0.18em; }
+#join-error {
+  display: none;
+  font-size: 11px;
+  color: #c0392b;
+  padding: 8px 12px;
+  background: #fdf2f0;
+  border-radius: 6px;
+  border: 1px solid #f5c6c2;
+}
+.btn {
+  padding: 12px 24px;
+  border: 1.5px solid var(--ink);
+  background: none;
+  color: var(--ink);
+  font-family: 'DM Mono', monospace;
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  cursor: pointer;
+  border-radius: 8px;
+  transition: all 0.18s;
+  text-align: center;
+}
+.btn:hover   { background: var(--ink); color: var(--bg); }
+.btn.filled  { background: var(--ink); color: var(--bg); }
+.btn.filled:hover { opacity: 0.82; }
+
+/* ══════════════════════════════════════
+   WAITING
+══════════════════════════════════════ */
+#screen-waiting {
+  min-height: 100vh;
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: 20px;
+  padding: 32px;
+}
+#screen-waiting.active { display: flex; }
+.wait-title {
+  font-family: 'Playfair Display', serif;
+  font-size: 1.6rem;
+  font-weight: 900;
+  font-style: italic;
+}
+.wait-subtitle {
+  font-size: 11px;
+  color: var(--muted);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.code-box {
+  background: var(--ink);
+  color: var(--bg);
+  font-family: 'Playfair Display', serif;
+  font-size: 3.2rem;
+  font-weight: 900;
+  letter-spacing: 0.22em;
+  padding: 22px 48px;
+  border-radius: var(--radius);
+}
+.pulse-dot {
+  display: inline-block;
+  width: 9px; height: 9px;
+  background: #4ade80;
+  border-radius: 50%;
+  margin-right: 8px;
+  animation: pulse 1.5s ease infinite;
+}
+@keyframes pulse {
+  0%,100% { opacity:1; transform:scale(1); }
+  50%      { opacity:0.35; transform:scale(0.65); }
+}
+
+/* ══════════════════════════════════════
+   GAME SCREEN
+══════════════════════════════════════ */
+#screen-game { padding-bottom: 48px; }
+
+.game-header {
+  padding: 16px 28px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  background: var(--white);
+  position: sticky;
+  top: 0;
+  z-index: 50;
+}
+.game-logo {
+  font-family: 'Playfair Display', serif;
+  font-size: 1.25rem;
+  font-weight: 900;
+}
+.game-logo em { font-style: italic; font-weight: 400; }
+
+.scoreboard {
+  display: flex;
+  gap: 6px;
+  align-items: stretch;
+}
+.player-box {
+  padding: 8px 18px;
+  border-radius: 10px;
+  text-align: center;
+  border: 1.5px solid var(--border);
+  background: var(--bg);
+  transition: all 0.25s;
+  min-width: 80px;
+}
+.player-box.active-player {
+  border-color: var(--ink);
+  background: var(--ink);
+  color: var(--bg);
+}
+.player-box .p-name {
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 90px;
+}
+.player-box.active-player .p-name { color: rgba(247,245,239,0.6); }
+.player-box .p-score {
+  font-family: 'Playfair Display', serif;
+  font-size: 1.9rem;
+  font-weight: 700;
+  line-height: 1;
+  margin-top: 2px;
+}
+.score-sep {
+  font-family: 'Playfair Display', serif;
+  font-size: 1.4rem;
+  color: var(--border);
+  display: flex;
+  align-items: center;
+}
+
+/* Turn banner */
+.turn-banner {
+  margin: 18px 28px 0;
+  padding: 13px 20px;
+  border-radius: 10px;
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  text-align: center;
+  transition: all 0.3s;
+}
+.turn-banner.my-turn  { background: var(--ink); color: var(--bg); }
+.turn-banner.opp-turn {
+  background: #f0ece4;
+  color: var(--muted);
+  border: 1px dashed var(--border);
+}
+.last-event {
+  text-align: center;
+  font-size: 11px;
+  color: var(--muted);
+  letter-spacing: 0.05em;
+  min-height: 16px;
+  padding: 7px 28px 0;
+  font-style: italic;
+}
+
+/* Game grid */
+.game-area { padding: 22px 24px; }
+.grid {
+  display: grid;
+  grid-template-columns: repeat(5, var(--card-w));
+  gap: 12px;
+  justify-content: center;
+}
+@media(max-width:820px) {
+  :root { --card-w: 118px; --card-h: 200px; }
+  .grid { grid-template-columns: repeat(4, var(--card-w)); }
+}
+@media(max-width:560px) {
+  :root { --card-w: 96px; --card-h: 170px; }
+  .grid { grid-template-columns: repeat(4, var(--card-w)); }
+}
+
+/* ══════════════════════════════════════
+   CARD
+══════════════════════════════════════ */
+.card {
+  width: var(--card-w);
+  height: var(--card-h);
+  cursor: pointer;
+  perspective: 900px;
+}
+.card.locked { cursor: default; }
+.card-inner {
+  width: 100%; height: 100%;
+  position: relative;
+  transform-style: preserve-3d;
+  transition: transform 0.52s cubic-bezier(0.4, 0, 0.2, 1);
+  border-radius: var(--radius);
+}
+.card.flipped .card-inner,
+.card.matched .card-inner { transform: rotateY(180deg); }
+
+.card-face {
+  position: absolute; inset: 0;
+  border-radius: var(--radius);
+  backface-visibility: hidden;
+  overflow: hidden;
+}
+
+/* Back */
+.card-back {
+  background: var(--ink);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.card-back::before {
+  content: '';
+  position: absolute; inset: 10px;
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 8px;
+}
+.card-back-mark {
+  font-family: 'Playfair Display', serif;
+  font-style: italic;
+  font-size: 2.6rem;
+  color: rgba(255,255,255,0.08);
+  user-select: none;
+}
+
+/* Front */
+.card-front {
+  transform: rotateY(180deg);
+  display: flex;
+  flex-direction: column;
+  background: var(--white);
+  border: 1px solid var(--border);
+}
+
+/* Color zone — min 20% of card height */
+.card-color-zone {
+  flex-shrink: 0;
+  height: 25%;          /* 25% > 20% minimum */
+  min-height: 44px;
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  padding: 0 8px 5px;
+}
+.card-hex {
+  font-family: 'DM Mono', monospace;
+  font-size: 7.5px;
+  color: rgba(255,255,255,0.38);
+  letter-spacing: 0.06em;
+  user-select: none;
+}
+
+/* Info zone */
+.card-info-zone {
+  flex: 1;
+  min-height: 0;
+  padding: 8px 9px 9px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  overflow: hidden;
+}
+.card-shade-name {
+  font-family: 'Playfair Display', serif;
+  font-size: 13px;
+  font-weight: 900;
+  color: var(--ink);
+  line-height: 1.1;
+  flex-shrink: 0;
+  padding-bottom: 5px;
+  border-bottom: 1px solid #f0ece4;
+}
+.card-tags {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  overflow: hidden;
+}
+.card-tag {
+  display: flex;
+  gap: 5px;
+  align-items: flex-start;
+  font-size: 7px;
+  line-height: 1.45;
+  color: #555;
+  overflow: hidden;
+}
+.tag-pill {
+  width: 15px; height: 15px;
+  border-radius: 4px;
+  font-size: 8px;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.pill-origin  { background: #EEF4FF; }
+.pill-nature  { background: #F0FBF4; }
+.pill-culture { background: #FFF8EE; }
+.card-tag span {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Matched — fade out */
+.card.matched .card-front {
+  opacity: 0.32;
+  filter: grayscale(0.5) brightness(1.05);
+}
+
+/* Hover lift (only when clickable) */
+.card:not(.locked):not(.flipped):not(.matched):hover .card-inner {
+  transform: translateY(-4px) scale(1.02);
+  filter: drop-shadow(0 10px 28px rgba(0,0,0,0.14));
+}
+
+/* ══════════════════════════════════════
+   WIN OVERLAY
+══════════════════════════════════════ */
+.win-overlay {
+  display: none;
+  position: fixed; inset: 0;
+  background: rgba(247, 245, 239, 0.96);
+  z-index: 200;
+  flex-direction: column;
+  align-items: center; justify-content: center;
+  gap: 16px; text-align: center; padding: 32px;
+}
+.win-overlay.show { display: flex; }
+.win-star { font-size: 56px; }
+.win-title {
+  font-family: 'Playfair Display', serif;
+  font-size: clamp(2.4rem, 8vw, 4.8rem);
+  font-style: italic;
+  font-weight: 900;
+  line-height: 1;
+}
+.win-sub { font-size: 13px; color: var(--muted); letter-spacing: 0.08em; }
+.win-actions { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; margin-top: 8px; }
+
+/* ─── MISC ANIMATIONS ─── */
+@keyframes shake {
+  0%,100% { transform: translateX(0); }
+  20%,60% { transform: translateX(-6px); }
+  40%,80% { transform: translateX(6px); }
+}
+</style>
+</head>
+<body>
+
+<!-- ══ LOBBY ══ -->
+<div id="screen-lobby" class="screen active">
+  <div class="lobby-hero">
+    <div class="lobby-title">Colour<em>Flip</em></div>
+    <div class="lobby-tagline">2-player memory · 20 shades of blue</div>
+    <div class="colour-strip">
+      <div style="background:#003153"></div>
+      <div style="background:#1B6FA8"></div>
+      <div style="background:#2A8FBF"></div>
+      <div style="background:#4B0082"></div>
+      <div style="background:#576D8E"></div>
+      <div style="background:#5B3F93"></div>
+      <div style="background:#6A8EAE"></div>
+      <div style="background:#7BA7BC"></div>
+      <div style="background:#8FAADC"></div>
+      <div style="background:#7B68B5"></div>
+    </div>
+  </div>
+
+  <div class="lobby-panels">
+    <div class="panel">
+      <div class="panel-title">Create a game</div>
+      <div class="panel-desc">Start a new game and share the 6-letter code with your friend.</div>
+      <input type="text" id="host-name" placeholder="Your name" maxlength="16" autocomplete="off">
+      <button class="btn filled" id="btn-host">▶ Create &amp; host</button>
+    </div>
+
+    <div class="panel">
+      <div class="panel-title">Join a game</div>
+      <div class="panel-desc">Enter your name and the code your friend shared with you.</div>
+      <input type="text" id="guest-name" placeholder="Your name" maxlength="16" autocomplete="off">
+      <input type="text" id="join-code" placeholder="Game code — e.g. AB3X7K" maxlength="6" autocomplete="off">
+      <div id="join-error"></div>
+      <button class="btn filled" id="btn-join">→ Join game</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ WAITING ══ -->
+<div id="screen-waiting" class="screen">
+  <div class="wait-title">Waiting for your opponent…</div>
+  <div class="wait-subtitle">Share this code with your friend</div>
+  <div class="code-box" id="wait-code">——</div>
+  <button class="btn" id="copy-btn">Copy code</button>
+  <div style="font-size:11px; color:var(--muted);">
+    <span class="pulse-dot"></span>Waiting for Player 2 to join…
+  </div>
+  <button class="btn" id="btn-leave-waiting" style="margin-top:12px; font-size:10px;">← Back to menu</button>
+</div>
+
+<!-- ══ GAME ══ -->
+<div id="screen-game" class="screen">
+  <div class="game-header">
+    <div class="game-logo">Colour<em>Flip</em></div>
+
+    <div class="scoreboard">
+      <div class="player-box" id="my-player-box">
+        <div class="p-name" id="my-name-display">You</div>
+        <div class="p-score" id="my-score">0</div>
+      </div>
+      <div class="score-sep">—</div>
+      <div class="player-box" id="opp-player-box">
+        <div class="p-name" id="opp-name-display">Opponent</div>
+        <div class="p-score" id="opp-score">0</div>
+      </div>
+    </div>
+
+    <button class="btn" id="btn-leave-game">✕ Leave</button>
+  </div>
+
+  <div class="turn-banner my-turn" id="turn-banner">Your turn!</div>
+  <div class="last-event" id="last-event"></div>
+
+  <div class="game-area">
+    <div class="grid" id="game-grid"></div>
+  </div>
+</div>
+
+<!-- ══ WIN ══ -->
+<div class="win-overlay" id="win-overlay">
+  <div class="win-star">✦</div>
+  <div class="win-title" id="win-title">Game over!</div>
+  <div class="win-sub" id="win-sub"></div>
+  <div class="win-actions">
+    <button class="btn filled" id="btn-restart">↺ Play again</button>
+    <button class="btn" id="btn-menu">← Menu</button>
+  </div>
+</div>
+
+</body>
+</html>
