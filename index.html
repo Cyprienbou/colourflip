@@ -467,12 +467,12 @@ function showCloseup(card, onDone) {
 
   // Force reflow then animate
   requestAnimationFrame(() => requestAnimationFrame(() => {
-    bar.style.transition = 'width 3s linear';
+    bar.style.transition = 'width 4s linear';
     bar.style.width      = '0%';
   }));
 
   clearTimeout(closeupTimer);
-  closeupTimer = setTimeout(() => { dismissCloseup(onDone); }, 3000);
+  closeupTimer = setTimeout(() => { dismissCloseup(onDone); }, 4000);
 
   overlay._onDone = onDone;
 }
@@ -495,6 +495,7 @@ function startSolo(familyKey) {
     deck, family:familyKey,
     flipped:[], matched:new Set(),
     moves:0, status:'playing',
+    pending:false,
   };
   soloElapsed   = 0;
   soloStartTime = Date.now();
@@ -510,37 +511,44 @@ function startSolo(familyKey) {
 function soloFlipCard(pos) {
   const s = soloState;
   if (s.status !== 'playing') return;
+  if (s.pending) return;           // close-up already showing
   const card = s.deck[pos];
   if (card.matched || card.flipped) return;
   if (s.flipped.length >= 2) return;
 
   playFlip();
+  s.pending = true;                // lock the board while close-up is open
 
-  // Show close-up then flip
-  showCloseup(card, () => {
-    // After close-up, actually flip the card
-    s.deck[pos] = {...card, flipped:true};
+  // Snapshot the card now so the callback always has the right data
+  const cardSnap = {...card};
+
+  showCloseup(cardSnap, () => {
+    s.pending = false;
+    // Re-read deck entry in case state mutated during the 3s close-up
+    s.deck[pos] = {...s.deck[pos], flipped:true};
     s.flipped.push(pos);
     renderSolo();
 
     if (s.flipped.length === 2) {
       s.moves++;
       document.getElementById('solo-moves').textContent = s.moves;
-      setTimeout(() => checkSoloMatch(), 900);
+      s.pending = true;            // lock while waiting to check
+      setTimeout(() => checkSoloMatch(), 1000);
     }
   });
 }
 
 function checkSoloMatch() {
   const s = soloState;
+  s.pending = false;
   const [pA, pB] = s.flipped;
   if (s.deck[pA].id === s.deck[pB].id) {
-    s.deck[pA] = {...s.deck[pA], matched:true};
-    s.deck[pB] = {...s.deck[pB], matched:true};
+    s.deck[pA] = {...s.deck[pA], matched:true, flipped:true};
+    s.deck[pB] = {...s.deck[pB], matched:true, flipped:true};
     s.matched.add(s.deck[pA].id);
+    s.flipped = [];
     playWellDone();
     renderSolo();
-    s.flipped = [];
     if (s.matched.size === 8) {
       clearInterval(soloTimer);
       soloElapsed = Date.now() - soloStartTime;
@@ -576,7 +584,7 @@ function renderSolo() {
   const grid = document.getElementById('solo-grid');
   grid.innerHTML = '';
   s.deck.forEach((card, pos) => {
-    const canFlip = !card.matched && !card.flipped && s.flipped.length < 2 && s.status === 'playing';
+    const canFlip = !card.matched && !card.flipped && s.flipped.length < 2 && s.status === 'playing' && !s.pending;
     const el = document.createElement('div');
     el.className = ['card',
       card.flipped||card.matched ? 'flipped' : '',
