@@ -383,15 +383,15 @@ function formatTime(ms) {
 function getScores() {
   try { return JSON.parse(localStorage.getItem('colourflip_scores') || '{}'); } catch(e) { return {}; }
 }
-function saveScore(familyKey, time, moves) {
+function saveScore(familyKey, time, moves, total) {
   const scores = getScores();
   const key = familyKey;
   const prev = scores[key];
-  // Lower is better: primary = time, secondary = moves
-  if (!prev || time < prev.time || (time === prev.time && moves < prev.moves)) {
-    scores[key] = { time, moves, date: new Date().toLocaleDateString() };
+  // Higher total is better; tiebreak by time
+  if (!prev || total > (prev.total||0) || (total === (prev.total||0) && time < prev.time)) {
+    scores[key] = { time, moves, total: total||0, date: new Date().toLocaleDateString() };
     try { localStorage.setItem('colourflip_scores', JSON.stringify(scores)); } catch(e) {}
-    return true; // new record
+    return true;
   }
   return false;
 }
@@ -461,19 +461,9 @@ function showCloseup(card, onDone) {
   nature.textContent   = card.nature;
   culture.textContent  = card.culture;
 
-  bar.style.transition = 'none';
-  bar.style.width      = '100%';
   overlay.classList.add('show');
-
-  // Force reflow then animate
-  requestAnimationFrame(() => requestAnimationFrame(() => {
-    bar.style.transition = 'width 4s linear';
-    bar.style.width      = '0%';
-  }));
-
   clearTimeout(closeupTimer);
-  closeupTimer = setTimeout(() => { dismissCloseup(onDone); }, 4000);
-
+  // No auto-dismiss — player taps to continue
   overlay._onDone = onDone;
 }
 function dismissCloseup(forcedCb) {
@@ -566,13 +556,8 @@ function checkSoloMatch() {
 
 function showSoloWin() {
   playWin();
-  const isRecord = saveScore(soloState.family, soloElapsed, soloState.moves);
-  document.getElementById('solo-win-time').textContent  = formatTime(soloElapsed);
-  document.getElementById('solo-win-moves').textContent = soloState.moves;
-  const rec = document.getElementById('solo-win-record');
-  rec.textContent  = isRecord ? '🏆 New personal best!' : '';
-  rec.style.display = isRecord ? 'block' : 'none';
-  document.getElementById('solo-win-overlay').classList.add('show');
+  // Launch solo quiz then show final results
+  startSoloQuiz();
 }
 
 function renderSolo() {
@@ -721,14 +706,377 @@ function render(state) {
     grid.appendChild(el);
   });
 
-  if (state.status==='finished') {
-    setTimeout(() => {
-      const myS=state.scores?.[myRole]??0, oppS=state.scores?.[oppRole]??0;
-      const winner = myS>oppS?'You win! 🏆':oppS>myS?`${oppLabel} wins! 🏆`:"It's a tie! 🤝";
-      document.getElementById('multi-win-title').textContent = winner;
-      document.getElementById('multi-win-sub').textContent   = `${myLabel} ${myS} — ${oppS} ${oppLabel}`;
-      document.getElementById('multi-win-overlay').classList.add('show');
-    }, 800);
+  if (state.status==='finished' && !quizShown) {
+    quizShown = true;
+    setTimeout(() => startMultiQuizTransition(), 800);
+  }
+  if (state.status==='quiz') {
+    renderMultiQuiz(state);
+  }
+  if (state.status==='tiebreaker') {
+    renderTiebreaker(state);
+  }
+  if (state.status==='quiz_done') {
+    renderMultiQuiz(state);
+    showMultiFinalResult(state);
+  }
+}
+
+// ═══════════════════════════════════════════════════
+// QUIZ ENGINE
+// ═══════════════════════════════════════════════════
+let quizShown = false;
+let soloQuizState = null;
+let multiQuizState = null;
+
+function shuffle2(a){const b=[...a];for(let i=b.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[b[i],b[j]]=[b[j],b[i]];}return b;}
+
+function makeQuizQuestions(deck) {
+  // Get unique matched cards (one per pair)
+  const seen = new Set();
+  const cards = [];
+  deck.forEach(c => {
+    if (c.matched && !seen.has(c.id)) { seen.add(c.id); cards.push(c); }
+  });
+  const pool = shuffle2(cards);
+  const allNames = cards.map(c=>c.name);
+  const questions = [];
+
+  // Q1 — swatch → name (1pt)
+  const c1 = pool[0];
+  const w1 = shuffle2(allNames.filter(n=>n!==c1.name)).slice(0,3);
+  questions.push({
+    pts:1, card:c1, type:'swatch',
+    prompt:'What is the name of this colour?',
+    answer:c1.name,
+    choices:shuffle2([c1.name,...w1]),
+  });
+
+  // Q2 — swatch → name different card (1pt)
+  const c2 = pool[1] || pool[0];
+  const w2 = shuffle2(allNames.filter(n=>n!==c2.name)).slice(0,3);
+  questions.push({
+    pts:1, card:c2, type:'swatch',
+    prompt:'Name this colour shade.',
+    answer:c2.name,
+    choices:shuffle2([c2.name,...w2]),
+  });
+
+  // Q3 — fact → name (2pts), harder: use full culture or nature text
+  const c3 = pool[2] || pool[0];
+  const w3 = shuffle2(allNames.filter(n=>n!==c3.name)).slice(0,3);
+  const factField = Math.random() > 0.5 ? 'culture' : 'nature';
+  const factLabel = factField === 'culture' ? 'cultural significance' : 'presence in nature';
+  questions.push({
+    pts:2, card:c3, type:'fact',
+    prompt:`Which colour has this ${factLabel}?`,
+    fact: c3[factField],
+    answer:c3.name,
+    choices:shuffle2([c3.name,...w3]),
+  });
+
+  // Tiebreaker — hardest: origin fact (no swatch shown)
+  const c4 = pool[3] || pool[0];
+  const w4 = shuffle2(allNames.filter(n=>n!==c4.name)).slice(0,3);
+  questions.push({
+    pts:0, card:c4, type:'tiebreaker',
+    prompt:'TIEBREAKER — First correct answer wins!',
+    fact: c4.origin,
+    answer:c4.name,
+    choices:shuffle2([c4.name,...w4]),
+  });
+
+  return questions;
+}
+
+// ─── SOLO QUIZ ───
+function startSoloQuiz() {
+  const questions = makeQuizQuestions(soloState.deck);
+  soloQuizState = { questions, current:0, quizScore:0 };
+  showScreen('screen-quiz-solo');
+  renderSoloQuizQ();
+}
+
+function renderSoloQuizQ() {
+  const qs = soloQuizState;
+  const q = qs.questions[qs.current];
+  if (!q || q.type === 'tiebreaker') { showSoloFinalResult(); return; }
+
+  const el = document.getElementById('solo-quiz-body');
+  el.innerHTML = buildQuizHTML(q, qs.current, qs.questions.filter(x=>x.type!=='tiebreaker').length, qs.quizScore, false);
+
+  document.getElementById('solo-quiz-progress').textContent =
+    `Question ${qs.current+1} of 3`;
+
+  el.querySelectorAll('.qz-choice').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const chosen = btn.dataset.val;
+      const correct = chosen === q.answer;
+      if (correct) qs.quizScore += q.pts;
+      highlightAnswer(el, chosen, q.answer, correct);
+      btn.closest('.qz-choices').querySelectorAll('.qz-choice').forEach(b=>b.disabled=true);
+      showQuizFeedback(el, correct, q);
+      setTimeout(() => {
+        qs.current++;
+        renderSoloQuizQ();
+      }, 1800);
+    });
+  });
+}
+
+function showSoloFinalResult() {
+  const qs = soloQuizState;
+  const pairScore = soloState.matched.size;
+  const total = pairScore + qs.quizScore;
+  const isRecord = saveScore(soloState.family, soloElapsed, soloState.moves, total);
+
+  document.getElementById('solo-win-pairs').textContent  = pairScore;
+  document.getElementById('solo-win-quiz').textContent   = qs.quizScore;
+  document.getElementById('solo-win-total').textContent  = total;
+  document.getElementById('solo-win-time').textContent   = formatTime(soloElapsed);
+  document.getElementById('solo-win-moves').textContent  = soloState.moves;
+  const rec = document.getElementById('solo-win-record');
+  rec.textContent  = isRecord ? '🏆 New personal best!' : '';
+  rec.style.display = isRecord ? 'block' : 'none';
+  showScreen('screen-quiz-solo');
+  document.getElementById('solo-win-overlay').classList.add('show');
+}
+
+// ─── MULTI QUIZ TRANSITION ───
+function startMultiQuizTransition() {
+  showScreen('screen-quiz-transition');
+  let count = 3;
+  const el = document.getElementById('quiz-countdown');
+  el.textContent = count;
+  const iv = setInterval(() => {
+    count--;
+    if (count <= 0) {
+      clearInterval(iv);
+      launchMultiQuiz();
+    } else {
+      el.textContent = count;
+    }
+  }, 1000);
+}
+
+async function launchMultiQuiz() {
+  if (myRole !== 'host') return; // only host writes quiz to Firebase
+  const questions = makeQuizQuestions(gameState.deck);
+  // Strip card object down to safe serialisable form
+  const safeQs = questions.map(q => ({
+    pts:q.pts, type:q.type, prompt:q.prompt,
+    answer:q.answer, choices:q.choices,
+    fact:q.fact||null,
+    cardHex:q.card.hex, cardName:q.card.name,
+  }));
+  await update(gameRef(gameId), {
+    status:'quiz',
+    quiz:{ questions:safeQs, current:0,
+           answers:{}, scores:{ host:gameState.scores.host, guest:gameState.scores.guest } }
+  });
+}
+
+function renderMultiQuiz(state) {
+  showScreen('screen-quiz-multi');
+  const quiz = state.quiz;
+  if (!quiz) return;
+  const q = quiz.questions[quiz.current];
+  if (!q) { showMultiFinalResult(state); return; }
+  if (q.type === 'tiebreaker') { return; } // handled separately
+
+  const myAnswered = quiz.answers?.[`${quiz.current}_${myRole}`] != null;
+  const oppRole = myRole==='host'?'guest':'host';
+  const oppAnswered = quiz.answers?.[`${quiz.current}_${oppRole}`] != null;
+
+  const el = document.getElementById('multi-quiz-body');
+  el.innerHTML = buildQuizHTML(q, quiz.current, quiz.questions.filter(x=>x.type!=='tiebreaker').length, quiz.scores[myRole]||0, true, myAnswered);
+
+  document.getElementById('multi-quiz-progress').textContent = `Question ${quiz.current+1} of 3`;
+  document.getElementById('multi-quiz-myscore').textContent  = quiz.scores[myRole]||0;
+  document.getElementById('multi-quiz-oppscore').textContent = quiz.scores[oppRole]||0;
+
+  if (myAnswered) {
+    const myAns = quiz.answers[`${quiz.current}_${myRole}`];
+    highlightAnswer(el, myAns, q.answer, myAns===q.answer);
+    el.querySelectorAll('.qz-choice').forEach(b=>b.disabled=true);
+    showQuizFeedback(el, myAns===q.answer, q);
+  } else {
+    el.querySelectorAll('.qz-choice').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const chosen = btn.dataset.val;
+        const correct = chosen === q.answer;
+        const scoreAdd = correct ? q.pts : -1;
+        const newScore = Math.max(0, (quiz.scores[myRole]||0) + scoreAdd);
+
+        const ansKey = `quiz/answers/${quiz.current}_${myRole}`;
+        const scoreKey = `quiz/scores/${myRole}`;
+        await update(gameRef(gameId), {
+          [ansKey]: chosen,
+          [scoreKey]: newScore,
+        });
+      });
+    });
+  }
+
+  // Both answered → advance after short delay
+  if (myAnswered && oppAnswered) {
+    const bothKey = `${quiz.current}_both_advanced`;
+    if (!window[bothKey]) {
+      window[bothKey] = true;
+      setTimeout(async () => {
+        window[bothKey] = false;
+        const nextIdx = quiz.current + 1;
+        const nextQ = quiz.questions[nextIdx];
+        if (!nextQ || (nextIdx >= quiz.questions.filter(x=>x.type!=='tiebreaker').length)) {
+          // Check for tie → tiebreaker or end
+          const snap = await get(gameRef(gameId));
+          const fresh = snap.val();
+          const hs = fresh.quiz.scores.host;
+          const gs = fresh.quiz.scores.guest;
+          if (hs === gs && myRole === 'host') {
+            await update(gameRef(gameId), { status:'tiebreaker' });
+          } else if (myRole === 'host') {
+            await update(gameRef(gameId), { status:'quiz_done' });
+          }
+        } else if (myRole === 'host') {
+          await update(gameRef(gameId), { 'quiz/current': nextIdx, 'quiz/answers': {} });
+        }
+      }, 2200);
+    }
+  }
+}
+
+function renderTiebreaker(state) {
+  showScreen('screen-quiz-multi');
+  const quiz = state.quiz;
+  const tbQ = quiz.questions.find(q=>q.type==='tiebreaker');
+  if (!tbQ) return;
+
+  const myAnswered = quiz.answers?.['tb_'+myRole] != null;
+  const oppRole = myRole==='host'?'guest':'host';
+
+  const el = document.getElementById('multi-quiz-body');
+  el.innerHTML = `
+    <div style="background:#1a1410;color:#f7f5ef;border-radius:10px;padding:12px 14px;text-align:center;margin-bottom:16px;">
+      <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;opacity:.6;margin-bottom:4px;">Tiebreaker</div>
+      <div style="font-size:13px;font-weight:700;">First correct answer wins the game</div>
+    </div>
+    <div style="font-size:12px;color:var(--muted);font-style:italic;line-height:1.6;margin-bottom:14px;padding:10px 12px;background:#faf8f4;border-radius:8px;border:1px solid var(--border);">"${tbQ.fact}"</div>
+    <p style="font-size:13px;font-weight:700;margin-bottom:14px;">Which colour is this?</p>
+    <div class="qz-choices" style="display:flex;flex-direction:column;gap:8px;">
+      ${tbQ.choices.map(c=>`<button class="qz-choice btn" data-val="${c}" ${myAnswered?'disabled':''}>${c}</button>`).join('')}
+    </div>
+    <div id="qz-feedback" style="display:none;margin-top:14px;padding:10px 12px;border-radius:8px;font-size:12px;"></div>`;
+
+  document.getElementById('multi-quiz-progress').textContent = 'Tiebreaker';
+
+  if (myAnswered) {
+    const myAns = quiz.answers['tb_'+myRole];
+    highlightAnswer(el, myAns, tbQ.answer, myAns===tbQ.answer);
+    el.querySelectorAll('.qz-choice').forEach(b=>b.disabled=true);
+  } else {
+    el.querySelectorAll('.qz-choice').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const chosen = btn.dataset.val;
+        const correct = chosen === tbQ.answer;
+        const ansKey = `quiz/answers/tb_${myRole}`;
+        await update(gameRef(gameId), { [ansKey]: chosen });
+
+        // Check if this decides the winner
+        const snap = await get(gameRef(gameId));
+        const fresh = snap.val().quiz.answers;
+        const myAns  = fresh['tb_'+myRole];
+        const oppAns = fresh['tb_'+oppRole];
+        // If I answered correctly first → I win; if wrong → opponent wins if they answer correctly or I'm eliminated
+        if (correct && myRole === 'host') {
+          await update(gameRef(gameId), {
+            'quiz/tiebreak_winner': myRole,
+            status: 'quiz_done'
+          });
+        } else if (!correct) {
+          // Penalty: if opponent already answered correctly they win
+          if (oppAns === tbQ.answer) {
+            if (myRole === 'host') await update(gameRef(gameId), { 'quiz/tiebreak_winner': oppRole, status:'quiz_done' });
+          }
+          // If opponent hasn't answered yet or also wrong, game continues waiting
+        }
+      });
+    });
+  }
+
+  if (state.status === 'quiz_done') showMultiFinalResult(state);
+}
+
+function showMultiFinalResult(state) {
+  const quiz = state.quiz;
+  const oppRole = myRole==='host'?'guest':'host';
+  const myLabel  = myRole==='host'?state.host:state.guest;
+  const oppLabel = myRole==='host'?state.guest:state.host;
+  const myPairs  = state.scores?.[myRole]??0;
+  const oppPairs = state.scores?.[oppRole]??0;
+  const myQScore = quiz?.scores?.[myRole]??0;
+  const oppQScore= quiz?.scores?.[oppRole]??0;
+  const myTotal  = myPairs + myQScore;
+  const oppTotal = oppPairs + oppQScore;
+
+  const tbWinner = quiz?.tiebreak_winner;
+  let winner;
+  if (tbWinner) {
+    winner = tbWinner === myRole ? `${myLabel} wins! 🏆` : `${oppLabel} wins! 🏆`;
+  } else {
+    winner = myTotal > oppTotal ? `${myLabel} wins! 🏆` : oppTotal > myTotal ? `${oppLabel} wins! 🏆` : "It's a tie! 🤝";
+  }
+
+  document.getElementById('multi-win-title').textContent = winner;
+  document.getElementById('multi-win-pairs').textContent  = `${myLabel} ${myPairs} pairs + ${myQScore} quiz = ${myTotal}`;
+  document.getElementById('multi-win-pairs2').textContent = `${oppLabel} ${oppPairs} pairs + ${oppQScore} quiz = ${oppTotal}`;
+  document.getElementById('multi-win-overlay').classList.add('show');
+}
+
+// ─── SHARED QUIZ HTML BUILDER ───
+function buildQuizHTML(q, idx, total, currentScore, isMulti, alreadyAnswered=false) {
+  const swatchHTML = q.type==='swatch' || q.type==='name_from_swatch'
+    ? `<div style="width:100%;height:64px;border-radius:10px;background:${q.cardHex||q.card.hex};margin-bottom:14px;"></div>` : '';
+  const factHTML = q.fact
+    ? `<div style="font-size:11.5px;color:var(--muted);font-style:italic;line-height:1.6;margin-bottom:14px;padding:10px 12px;background:#faf8f4;border-radius:8px;border:1px solid var(--border);">"${q.fact}"</div>` : '';
+  const ptsLabel = q.pts===2 ? '2 pts' : '1 pt';
+  const speedNote = isMulti ? '<div style="font-size:9px;color:var(--muted);text-align:center;letter-spacing:.08em;text-transform:uppercase;margin-bottom:10px;">Speed bonus — first correct answer earns full points · wrong = −1pt</div>' : '';
+
+  return `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+      <span style="font-size:11px;color:var(--muted);">Q${idx+1} of ${total}</span>
+      <span style="font-size:10px;padding:2px 9px;border-radius:99px;border:1.5px solid var(--ink);letter-spacing:.06em;">${ptsLabel}</span>
+    </div>
+    ${swatchHTML}
+    ${factHTML}
+    ${speedNote}
+    <p style="font-size:13px;font-weight:700;margin-bottom:14px;line-height:1.4;">${q.prompt}</p>
+    <div class="qz-choices" style="display:flex;flex-direction:column;gap:8px;">
+      ${q.choices.map(c=>`<button class="qz-choice btn" data-val="${c}" ${alreadyAnswered?'disabled':''}>${c}</button>`).join('')}
+    </div>
+    <div id="qz-feedback" style="display:none;margin-top:14px;padding:10px 12px;border-radius:8px;font-size:12px;line-height:1.55;"></div>`;
+}
+
+function highlightAnswer(container, chosen, correct, isCorrect) {
+  container.querySelectorAll('.qz-choice').forEach(b => {
+    if (b.dataset.val === correct) {
+      b.style.background='#d4edda'; b.style.borderColor='#28a745'; b.style.color='#155724';
+    } else if (b.dataset.val === chosen && !isCorrect) {
+      b.style.background='#f8d7da'; b.style.borderColor='#dc3545'; b.style.color='#721c24';
+    }
+  });
+}
+
+function showQuizFeedback(container, correct, q) {
+  const fb = container.querySelector('#qz-feedback');
+  if (!fb) return;
+  fb.style.display = 'block';
+  if (correct) {
+    fb.style.background='#d4edda'; fb.style.border='1px solid #28a745'; fb.style.color='#155724';
+    fb.innerHTML = `<strong>Correct! +${q.pts}pt${q.pts>1?'s':''}</strong>`;
+  } else {
+    fb.style.background='#f8d7da'; fb.style.border='1px solid #dc3545'; fb.style.color='#721c24';
+    fb.innerHTML = `<strong>Not quite — it was ${q.answer}.</strong>`;
   }
 }
 
@@ -812,7 +1160,7 @@ function copyCode() {
 function leaveToMenu() {
   if (stopListen) stopListen();
   clearInterval(soloTimer);
-  gameId=null; myRole=null; gameState=null; soloState=null; gameMode=null; selectedFamily=null;
+  gameId=null; myRole=null; gameState=null; soloState=null; gameMode=null; selectedFamily=null; quizShown=false; soloQuizState=null; multiQuizState=null;
   document.querySelectorAll('.win-overlay,.screen').forEach(el => { el.classList.remove('show','active'); });
   document.getElementById('closeup-overlay').classList.remove('show');
   document.querySelectorAll('.family-card').forEach(c=>c.classList.remove('selected'));
@@ -844,8 +1192,8 @@ function renderHighScores() {
       row.innerHTML = `
         <div class="hs-fam">${fam.emoji} ${fam.label}</div>
         <div class="hs-vals">
-          <span class="hs-time">⏱ ${formatTime(s.time)}</span>
-          <span class="hs-moves">🃏 ${s.moves} moves</span>
+          <span class="hs-time">★ ${s.total||0} pts</span>
+          <span class="hs-moves">⏱ ${formatTime(s.time)}</span>
           <span class="hs-date">${s.date}</span>
         </div>`;
       container.appendChild(row);
@@ -895,6 +1243,8 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('btn-leave-waiting').addEventListener('click', leaveToMenu);
   document.getElementById('btn-leave-solo').addEventListener('click',    leaveToMenu);
   document.getElementById('btn-leave-multi').addEventListener('click',   leaveToMenu);
+  document.getElementById('btn-leave-solo-quiz').addEventListener('click', leaveToMenu);
+  document.getElementById('btn-leave-multi-quiz').addEventListener('click', leaveToMenu);
   document.getElementById('btn-solo-restart').addEventListener('click',  ()=>{ document.getElementById('solo-win-overlay').classList.remove('show'); restartSolo(); });
   document.getElementById('btn-solo-menu').addEventListener('click',     leaveToMenu);
   document.getElementById('btn-multi-restart').addEventListener('click', restartMulti);
@@ -1214,8 +1564,6 @@ input[type=text]:focus { border-color:var(--ink); }
 .cu-tag-text { font-size:11.5px; color:#444; line-height:1.55; }
 .cu-footer { padding:14px 18px 0; display:flex; align-items:center; justify-content:space-between; }
 .cu-hint { font-size:9px; color:var(--muted); letter-spacing:.08em; text-transform:uppercase; }
-.cu-timer-wrap { flex:1; height:3px; background:#f0ece4; border-radius:3px; margin-left:16px; overflow:hidden; }
-#cu-timer-bar { height:100%; background:var(--ink); border-radius:3px; width:100%; }
 
 /* ═══════════════════════════════════════════════════
    WIN OVERLAYS
@@ -1265,6 +1613,39 @@ input[type=text]:focus { border-color:var(--ink); }
 @keyframes shake { 0%,100%{transform:translateX(0)} 20%,60%{transform:translateX(-6px)} 40%,80%{transform:translateX(6px)} }
 .shake { animation:shake .4s ease; }
 
+/* ═══════════════════════════════════════════════════
+   QUIZ TRANSITION SCREEN
+═══════════════════════════════════════════════════ */
+#screen-quiz-transition {
+  min-height:100vh; display:none;
+  align-items:center; justify-content:center;
+  background:var(--ink); text-align:center;
+}
+#screen-quiz-transition.active { display:flex; }
+.quiz-transition-inner { display:flex; flex-direction:column; align-items:center; gap:14px; }
+.qt-label {
+  font-family:'Playfair Display',serif; font-size:clamp(2.2rem,9vw,3.5rem);
+  font-style:italic; font-weight:900; color:#f7f5ef;
+}
+.qt-sub { font-size:11px; color:rgba(247,245,239,.5); letter-spacing:.12em; text-transform:uppercase; }
+.qt-count {
+  font-family:'Playfair Display',serif; font-size:5rem; font-weight:900; color:#f7f5ef;
+  animation:countPulse .9s ease infinite;
+}
+@keyframes countPulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.5;transform:scale(.88)} }
+
+/* ═══════════════════════════════════════════════════
+   QUIZ BODY
+═══════════════════════════════════════════════════ */
+.quiz-body {
+  padding:18px 16px 32px;
+  max-width:480px; margin:0 auto;
+}
+.qz-choice {
+  width:100%; text-align:left; padding:11px 14px;
+  font-size:13px; border-radius:8px;
+  transition:background .15s, border-color .15s;
+}
 /* ═══════════════════════════════════════════════════
    iOS SAFE AREA
 ═══════════════════════════════════════════════════ */
@@ -1419,49 +1800,88 @@ input[type=text]:focus { border-color:var(--ink); }
       </div>
     </div>
     <div class="cu-footer">
-      <span class="cu-hint">Tap to dismiss</span>
-      <div class="cu-timer-wrap"><div id="cu-timer-bar"></div></div>
+      <span class="cu-hint">Tap to read &amp; dismiss</span>
     </div>
     <div style="height:14px"></div>
   </div>
 </div>
 
-<!-- ═══════════ SOLO WIN ═══════════ -->
-<div class="win-overlay" id="solo-win-overlay">
-  <div style="font-size:46px">✦</div>
-  <div class="win-title">You did it!</div>
-  <div class="win-stats">
-    <div class="win-stat-box">
-      <div class="ws-val" id="solo-win-time">—</div>
-      <div class="ws-lbl">Time</div>
-    </div>
-    <div class="win-stat-box">
-      <div class="ws-val" id="solo-win-moves">—</div>
-      <div class="ws-lbl">Moves</div>
-    </div>
-  </div>
-  <div class="win-record" id="solo-win-record" style="display:none">🏆 New personal best!</div>
-  <div class="win-actions">
-    <button class="btn filled" id="btn-solo-restart">↺ Play again</button>
-    <button class="btn" id="btn-solo-menu">← Menu</button>
+<!-- ═══════════ QUIZ TRANSITION ═══════════ -->
+<div id="screen-quiz-transition" class="screen">
+  <div class="quiz-transition-inner">
+    <div class="qt-label">Quiz time!</div>
+    <div class="qt-sub">3 questions on the colours you just played</div>
+    <div class="qt-count" id="quiz-countdown">3</div>
   </div>
 </div>
 
-<!-- ═══════════ MULTI WIN ═══════════ -->
-<div class="win-overlay" id="multi-win-overlay">
-  <div style="font-size:46px">✦</div>
-  <div class="win-title" id="multi-win-title">Game over!</div>
-  <div class="win-sub" id="multi-win-sub"></div>
-  <div class="win-actions">
-    <button class="btn filled" id="btn-multi-restart">↺ Play again</button>
-    <button class="btn" id="btn-multi-menu">← Menu</button>
+<!-- ═══════════ SOLO QUIZ ═══════════ -->
+<div id="screen-quiz-solo" class="screen">
+  <div class="game-header">
+    <div class="game-logo">Colour<em>Flip</em> <span style="font-family:'DM Mono',monospace;font-size:.65rem;font-weight:400;color:var(--muted)">· Quiz</span></div>
+    <span class="family-badge" id="solo-quiz-progress">Question 1 of 3</span>
+    <button class="btn leave-btn" id="btn-leave-solo-quiz">✕</button>
+  </div>
+  <div class="quiz-body" id="solo-quiz-body"></div>
+
+  <!-- Solo win overlay shown over this screen -->
+  <div class="win-overlay" id="solo-win-overlay">
+    <div style="font-size:40px">✦</div>
+    <div class="win-title">Final Score</div>
+    <div class="win-stats">
+      <div class="win-stat-box">
+        <div class="ws-val" id="solo-win-pairs">—</div>
+        <div class="ws-lbl">Pairs</div>
+      </div>
+      <div class="win-stat-box" style="border-color:var(--ink)">
+        <div class="ws-val" id="solo-win-quiz">—</div>
+        <div class="ws-lbl">Quiz</div>
+      </div>
+      <div class="win-stat-box" style="background:var(--ink);color:var(--bg)">
+        <div class="ws-val" id="solo-win-total">—</div>
+        <div class="ws-lbl" style="color:rgba(247,245,239,.6)">Total</div>
+      </div>
+    </div>
+    <div style="font-size:11px;color:var(--muted);margin-top:-4px">⏱ <span id="solo-win-time">—</span> &nbsp;·&nbsp; 🃏 <span id="solo-win-moves">—</span> moves</div>
+    <div class="win-record" id="solo-win-record" style="display:none">🏆 New personal best!</div>
+    <div class="win-actions">
+      <button class="btn filled" id="btn-solo-restart">↺ Play again</button>
+      <button class="btn" id="btn-solo-menu">← Menu</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════ MULTI QUIZ ═══════════ -->
+<div id="screen-quiz-multi" class="screen">
+  <div class="game-header">
+    <div class="game-logo">Colour<em>Flip</em> <span style="font-family:'DM Mono',monospace;font-size:.65rem;font-weight:400;color:var(--muted)">· Quiz</span></div>
+    <span class="family-badge" id="multi-quiz-progress">Question 1 of 3</span>
+    <div style="display:flex;gap:6px;align-items:center;font-size:11px;">
+      <span style="font-weight:700" id="multi-quiz-myscore">0</span>
+      <span style="color:var(--muted)">vs</span>
+      <span id="multi-quiz-oppscore">0</span>
+    </div>
+    <button class="btn leave-btn" id="btn-leave-multi-quiz">✕</button>
+  </div>
+  <div class="quiz-body" id="multi-quiz-body"></div>
+
+  <!-- Multi win overlay shown over this screen -->
+  <div class="win-overlay" id="multi-win-overlay">
+    <div style="font-size:40px">✦</div>
+    <div class="win-title" id="multi-win-title">Game over!</div>
+    <div style="font-size:12px;color:var(--muted);line-height:2;" id="multi-win-pairs"></div>
+    <div style="font-size:12px;color:var(--muted);line-height:2;" id="multi-win-pairs2"></div>
+    <div class="win-actions">
+      <button class="btn filled" id="btn-multi-restart">↺ Play again</button>
+      <button class="btn" id="btn-multi-menu">← Menu</button>
+    </div>
   </div>
 </div>
 
 <!-- ═══════════ HIGH SCORES ═══════════ -->
 <div id="hs-overlay">
   <div class="hs-title">Personal Bests</div>
-  <div style="font-size:10px;color:var(--muted);letter-spacing:.1em;text-transform:uppercase">Solo mode — best time per family</div>
+  <div style="font-size:10px;color:var(--muted);letter-spacing:.1em;text-transform:uppercase">Solo mode · pairs + quiz</div>
   <div id="hs-list"></div>
   <button class="btn" id="btn-hs-close">← Back</button>
 </div>
